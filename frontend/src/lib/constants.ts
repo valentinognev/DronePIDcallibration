@@ -61,4 +61,18 @@ export function getTraceColor(key: string, theme: AppTheme): string {
 
 export const COLORMAPS = ['Hot', 'Jet', 'Viridis', 'Plasma', 'Electric'] as const;
 
+/** Distinct colors for multi-file overlays (spectral, step response, etc.) */
+export const FILE_OVERLAY_COLORS = [
+  '#ff4444',
+  '#44aaff',
+  '#44dd44',
+  '#ffaa00',
+  '#cc44ff',
+  '#00dddd',
+  '#ff88cc',
+  '#aaff44',
+  '#8888ff',
+  '#ff8844',
+];
+
 export const AXIS_LABELS = ['Roll', 'Pitch', 'Yaw'] as const;

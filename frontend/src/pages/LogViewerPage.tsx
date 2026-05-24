@@ -8,14 +8,16 @@ import { useSessionStore } from '../store/sessionStore';
 
 export function LogViewerPage() {
   const {
-    files, traceData, loading, error, settings, visibleTraces,
+    sessionId, files, traceData, loading, error, settings, visibleTraces,
     uploadFiles, refreshTraces, setSettings, toggleTrace,
     selectedFileIdx, setSelectedFile, setEpoch, reset, initSession,
   } = useSessionStore();
 
   useEffect(() => {
-    initSession();
-  }, [initSession]);
+    if (!sessionId) {
+      initSession();
+    }
+  }, [sessionId, initSession]);
 
   useEffect(() => {
     if (files.length > 0) refreshTraces();
@@ -69,6 +71,12 @@ export function LogViewerPage() {
                 yLabel="Roll (deg/s)"
                 yRange={[-settings.yScale, settings.yScale]}
                 lineWidth={settings.lineWidth}
+                saveFilename="log-viewer-roll"
+                epochTrim={
+                  traceData.epoch
+                    ? { start: traceData.epoch[0], end: traceData.epoch[1], onCommit: setEpoch }
+                    : undefined
+                }
               />
             )}
             {traceData?.panels?.pitch && settings.plotP && (

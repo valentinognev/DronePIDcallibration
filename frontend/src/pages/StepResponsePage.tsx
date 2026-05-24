@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
 import { api } from '../lib/api';
+import { FILE_OVERLAY_COLORS } from '../lib/constants';
 import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
@@ -28,8 +29,6 @@ export function StepResponsePage() {
     }
   };
 
-  const colors = ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff'];
-
   return (
     <div className="flex gap-4 h-[calc(100vh-80px)]">
       <div className="flex-1 grid grid-rows-3 gap-2">
@@ -46,13 +45,37 @@ export function StepResponsePage() {
                 type: 'scatter',
                 mode: 'lines',
                 name: `${file.name} (${ax.stats?.n || 0})`,
-                line: { color: colors[fi % colors.length] },
+                line: { color: FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length] },
               });
             }
           });
 
+          const fileStats = results
+            .map((file, fi) => {
+              const ax = (file.axes as Record<string, { stats: Record<string, number>; pidf: string }>)?.[axis];
+              if (!ax?.stats) return null;
+              return { name: String(file.name), fi, stats: ax.stats, pidf: ax.pidf };
+            })
+            .filter(Boolean) as Array<{ name: string; fi: number; stats: Record<string, number>; pidf: string }>;
+
+          const barNames = fileStats.map((f) => f.name.slice(0, 12));
+          const peakBars: Plotly.Data = {
+            type: 'bar',
+            x: barNames,
+            y: fileStats.map((f) => f.stats.peak_mean ?? 0),
+            marker: { color: fileStats.map((f) => FILE_OVERLAY_COLORS[f.fi % FILE_OVERLAY_COLORS.length]) },
+            name: 'Peak',
+          };
+          const latencyBars: Plotly.Data = {
+            type: 'bar',
+            x: barNames,
+            y: fileStats.map((f) => f.stats.latency_mean_ms ?? 0),
+            marker: { color: fileStats.map((f) => FILE_OVERLAY_COLORS[f.fi % FILE_OVERLAY_COLORS.length]) },
+            name: 'Latency (ms)',
+          };
+
           return (
-            <div key={axis} className="flex gap-2">
+            <div key={axis} className="flex gap-2 min-h-0">
               <Plot
                 data={traces}
                 layout={{
@@ -63,24 +86,49 @@ export function StepResponsePage() {
                   yaxis: { ...plotLayoutBase.yaxis, title: 'Response', range: [0, 1.5] },
                 }}
                 config={{ responsive: true }}
-                style={{ width: '70%' }}
+                style={{ width: '45%' }}
                 useResizeHandler
               />
-              <div className="panel w-48 text-xs overflow-auto">
-                <h4 className="font-semibold mb-2">{axis} stats</h4>
-                {results.map((file, fi) => {
-                  const ax = (file.axes as Record<string, { stats: Record<string, number>; pidf: string }>)?.[axis];
-                  if (!ax) return null;
-                  return (
-                    <div key={fi} className="mb-2" style={{ color: colors[fi % colors.length] }}>
-                      <p>{String(file.name)}</p>
-                      <p>{ax.pidf}</p>
-                      <p>Peak: {ax.stats.peak_mean?.toFixed(3)} ± {ax.stats.peak_std?.toFixed(3)}</p>
-                      <p>Latency: {ax.stats.latency_mean_ms?.toFixed(1)} ms</p>
-                      <p>n={ax.stats.n}</p>
+              <div className="flex flex-col gap-1 w-[55%] min-h-0">
+                <Plot
+                  data={[peakBars]}
+                  layout={{
+                    ...plotLayoutBase,
+                    title: `${axis} — Peak`,
+                    height: 120,
+                    margin: { l: 40, r: 10, t: 30, b: 30 },
+                    yaxis: { ...plotLayoutBase.yaxis, title: 'Peak', range: [0, 1.5] },
+                    showlegend: false,
+                  }}
+                  config={{ responsive: true, displayModeBar: false }}
+                  style={{ width: '100%' }}
+                  useResizeHandler
+                />
+                <Plot
+                  data={[latencyBars]}
+                  layout={{
+                    ...plotLayoutBase,
+                    title: `${axis} — Latency`,
+                    height: 120,
+                    margin: { l: 40, r: 10, t: 30, b: 30 },
+                    yaxis: { ...plotLayoutBase.yaxis, title: 'ms' },
+                    showlegend: false,
+                  }}
+                  config={{ responsive: true, displayModeBar: false }}
+                  style={{ width: '100%' }}
+                  useResizeHandler
+                />
+                <div className="panel text-xs overflow-auto flex-1 min-h-0">
+                  <h4 className="font-semibold mb-1">{axis} stats</h4>
+                  {fileStats.map(({ name, fi, stats, pidf }) => (
+                    <div key={fi} className="mb-1" style={{ color: FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length] }}>
+                      <p>{name}</p>
+                      <p>{pidf}</p>
+                      <p>Peak: {stats.peak_mean?.toFixed(3)} ± {stats.peak_std?.toFixed(3)}</p>
+                      <p>Latency: {stats.latency_mean_ms?.toFixed(1)} ms · n={stats.n}</p>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             </div>
           );
