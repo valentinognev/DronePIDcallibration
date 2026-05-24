@@ -26,10 +26,12 @@ export interface FileInfo {
 
 export interface TraceData {
   time_range: [number, number];
+  full_time_range: [number, number];
   epoch: [number, number];
   lograte_khz: number;
   panels: Record<string, Array<{ key: string; label: string; color: string; x: number[]; y: number[] }>>;
-  motor_panel: Array<{ key: string; label: string; color: string; x: number[]; y: number[] }>;
+  motor_panel: Array<{ key: string; label: string; color: string; x: number[]; y: number[]; yaxis?: 'y' | 'y2' }>;
+  motor_panel_units?: { throttle: string; motors: string };
   available_traces: string[];
   metadata: Record<string, unknown>;
 }

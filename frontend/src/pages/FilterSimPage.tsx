@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
-import { PLOT_LAYOUT_BASE } from '../lib/constants';
+import { adaptPlotLineColor } from '../lib/constants';
 import { api } from '../lib/api';
+import { useAppTheme, usePlotLayoutBase } from '../hooks/useAppTheme';
 
 export function FilterSimPage() {
+  const theme = useAppTheme();
+  const plotLayoutBase = usePlotLayoutBase();
   const [looprate, setLooprate] = useState(8000);
   const [lpf1, setLpf1] = useState(250);
   const [lpf2, setLpf2] = useState(500);
@@ -49,7 +52,7 @@ export function FilterSimPage() {
             xaxis: key === 'step_response' ? undefined : 'x',
           }))}
           layout={{
-            ...PLOT_LAYOUT_BASE,
+            ...plotLayoutBase,
             title: `${title} — ${key.replace('_', ' ')}`,
             height: 180,
             showlegend: ki === 0,
@@ -77,11 +80,11 @@ export function FilterSimPage() {
                   type: 'scatter',
                   mode: 'lines',
                   name: 'Combined',
-                  line: { color: '#ffffff' },
+                  line: { color: adaptPlotLineColor('#ffffff', theme) },
                 },
               ]}
               layout={{
-                ...PLOT_LAYOUT_BASE,
+                ...plotLayoutBase,
                 title: `Combined | Total Delay: ${Number(data?.total_delay_ms).toFixed(3)} ms`,
                 height: 200,
                 xaxis: { title: 'Frequency (Hz)' },

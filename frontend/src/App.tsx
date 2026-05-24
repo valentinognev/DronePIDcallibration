@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { Layout } from './components/Layout';
+import { ThemeSync } from './components/ThemeSync';
 import { FilterSimPage } from './pages/FilterSimPage';
 import { FreqThrottlePage } from './pages/FreqThrottlePage';
 import { FreqTimePage } from './pages/FreqTimePage';
@@ -13,6 +14,7 @@ import { StepResponsePage } from './pages/StepResponsePage';
 export default function App() {
   return (
     <BrowserRouter>
+      <ThemeSync />
       <KeyboardShortcuts />
       <Layout>
         <Routes>

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import Plot from '../components/Plot';
 import { AxisSelector } from '../components/AxisSelector';
 import { ColormapPicker } from '../components/ColormapPicker';
-import { PLOT_LAYOUT_BASE } from '../lib/constants';
 import { api } from '../lib/api';
+import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
 export function FreqTimePage() {
+  const plotLayoutBase = usePlotLayoutBase();
   const { sessionId, selectedFileIdx } = useSessionStore();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [axis, setAxis] = useState(0);
@@ -50,7 +51,7 @@ export function FreqTimePage() {
             },
           ]}
           layout={{
-            ...PLOT_LAYOUT_BASE,
+            ...plotLayoutBase,
             title: `Frequency × Time — ${trace}`,
             height: 600,
             xaxis: { title: 'Time (s)' },

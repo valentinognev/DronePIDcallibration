@@ -26,11 +26,17 @@ TRACE_DEFS: dict[str, dict[str, Any]] = {
     "setpoint": {"col": "setpoint_{axis}_", "label": "Set point", "color": "#ff0000"},
     "pidsum": {"col": "pidsum_{axis}_", "label": "PID sum", "color": "#9933cc"},
     "piderr": {"col": "piderr_{axis}_", "label": "PID error", "color": "#00cccc"},
-    "throttle": {"col": "rcCommand_3_", "alt_cols": ["rcData_3_"], "label": "Throttle", "color": "#000000", "axis": None},
-    "motor_0": {"col": "motor_0_", "label": "Motor 1", "color": "#e60000"},
-    "motor_1": {"col": "motor_1_", "label": "Motor 2", "color": "#ff9900"},
-    "motor_2": {"col": "motor_2_", "label": "Motor 3", "color": "#0099ff"},
-    "motor_3": {"col": "motor_3_", "label": "Motor 4", "color": "#00cccc"},
+    "throttle": {
+        "col": "setpoint_3_",
+        "alt_cols": ["rcCommand_3_", "rcData_3_"],
+        "label": "Throttle",
+        "color": "#ffffff",
+        "axis": None,
+    },
+    "motor_0": {"col": "eRPM_0_", "alt_cols": ["motor_0_"], "label": "Motor 1 (RPM)", "color": "#e60000"},
+    "motor_1": {"col": "eRPM_1_", "alt_cols": ["motor_1_"], "label": "Motor 2 (RPM)", "color": "#ff9900"},
+    "motor_2": {"col": "eRPM_2_", "alt_cols": ["motor_2_"], "label": "Motor 3 (RPM)", "color": "#0099ff"},
+    "motor_3": {"col": "eRPM_3_", "alt_cols": ["motor_3_"], "label": "Motor 4 (RPM)", "color": "#00cccc"},
     "debug": {"col": "debug_{axis}_", "label": "Debug", "color": "#ff0000"},
 }
 
@@ -66,15 +72,32 @@ def _resolve_col(df: pd.DataFrame, trace_key: str, axis_idx: int | None) -> str 
     return col if col in df.columns else None
 
 
+def _scale_trace_values(trace_key: str, col: str, y: np.ndarray) -> np.ndarray:
+    """Convert raw blackbox columns to log-viewer units (PIDscope conventions)."""
+    if trace_key == "throttle":
+        if col == "setpoint_3_":
+            return y / 10.0
+        if col in ("rcCommand_3_", "rcData_3_"):
+            return (y - 1000.0) / 10.0
+    return y
+
+
+def _motor_trace_yaxis(trace_key: str, col: str) -> str:
+    if trace_key.startswith("motor_") and col.startswith("eRPM_"):
+        return "y2"
+    return "y"
+
+
 def get_trace(
     df: pd.DataFrame,
     trace_key: str,
     axis_idx: int = 0,
 ) -> np.ndarray | None:
     col = _resolve_col(df, trace_key, axis_idx if trace_key != "throttle" else None)
-    if col:
-        return df[col].values.astype(float)
-    return None
+    if col is None:
+        return None
+    y = df[col].values.astype(float)
+    return _scale_trace_values(trace_key, col, y)
 
 
 def extract_log_viewer_traces(
@@ -120,10 +143,14 @@ def extract_log_viewer_traces(
 
     # Throttle/motor panel
     motor_traces = []
+    motors_use_rpm = False
     for key in trace_keys:
         if key == "throttle":
+            col = _resolve_col(df, key, None)
             y = get_trace(df, key, None)
-            if y is not None:
+            if y is not None and col is not None:
+                if smooth_factor > 1:
+                    y = smooth_by_factor(y, smooth_factor)
                 tx, ty = downsample_trace(time_sec, y, factor)
                 motor_traces.append(
                     {
@@ -132,29 +159,45 @@ def extract_log_viewer_traces(
                         "color": TRACE_DEFS[key]["color"],
                         "x": tx.tolist(),
                         "y": ty.tolist(),
+                        "yaxis": "y",
                     }
                 )
         elif key.startswith("motor_"):
             motor_idx = int(key.split("_")[1])
+            col = _resolve_col(df, key, motor_idx)
             y = get_trace(df, key, motor_idx)
-            if y is not None:
+            if y is not None and col is not None:
+                if smooth_factor > 1:
+                    y = smooth_by_factor(y, smooth_factor)
                 tx, ty = downsample_trace(time_sec, y, factor)
+                yaxis = _motor_trace_yaxis(key, col)
+                motors_use_rpm = motors_use_rpm or yaxis == "y2"
                 motor_traces.append(
                     {
                         "key": key,
-                        "label": TRACE_DEFS[key]["label"],
+                        "label": TRACE_DEFS[key]["label"].replace(" (RPM)", "") if col.startswith("motor_") else TRACE_DEFS[key]["label"],
                         "color": TRACE_DEFS[key]["color"],
                         "x": tx.tolist(),
                         "y": ty.tolist(),
+                        "yaxis": yaxis,
                     }
                 )
 
+    t0_us = log.dataframe["time_us"].iloc[0]
+    full_t_sec = (log.dataframe["time_us"] - t0_us) / US2SEC
+    full_time_range = [float(full_t_sec.iloc[0]), float(full_t_sec.iloc[-1])]
+
     return {
         "time_range": [float(time_sec[0]), float(time_sec[-1])],
+        "full_time_range": full_time_range,
         "epoch": [epoch_start, epoch_end],
         "lograte_khz": log.lograte_khz,
         "panels": panels,
         "motor_panel": motor_traces,
+        "motor_panel_units": {
+            "throttle": "percent",
+            "motors": "rpm" if motors_use_rpm else "percent",
+        },
         "metadata": {
             "name": log.name,
             "fw_type": log.fw_type,

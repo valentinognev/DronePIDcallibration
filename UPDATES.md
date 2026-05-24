@@ -5,6 +5,33 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.5 — 2026-05-24
+
+### Fixed
+
+- **Light theme**: Plotly figures now use light backgrounds, grid, and axis label colors matching the UI theme; white trace lines are remapped for contrast on light backgrounds.
+- **Theme sync**: persisted theme applies on app load via `ThemeSync` and store rehydration.
+
+---
+
+## 0.1.4 — 2026-05-24
+
+### Fixed
+
+- **Log Viewer**: analysis window slider stays pinned above the plot area while scrolling vertically.
+- **Log Viewer**: throttle and motor RPM plots no longer overlap (Plotly containers now reserve height in the flex column).
+
+---
+
+## 0.1.3 — 2026-05-24
+
+### Added
+
+- **Log Viewer analysis window slider**: dual-handle horizontal range control above the top plot to set epoch start/end; updates session epoch so all analysis tools use the selected time range only.
+- **`full_time_range`** in trace API response (full log duration independent of current epoch slice).
+
+---
+
 ## 0.1.2 — 2026-05-24
 
 ### Added

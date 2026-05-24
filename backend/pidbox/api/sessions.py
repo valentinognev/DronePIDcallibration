@@ -119,11 +119,6 @@ def get_traces(session_id: str, req: TraceRequest):
         smooth_factor=req.smooth_factor,
     )
     data["available_traces"] = list_available_traces(log.dataframe)
-    # #region agent log
-    import json, time
-    with open("/home/valentin/Projects/PIDToolBox/.cursor/debug-93a084.log", "a") as _f:
-        _f.write(json.dumps({"sessionId": "93a084", "location": "sessions.py:get_traces", "message": "trace response", "data": {"roll_keys": [t["key"] for t in data["panels"].get("roll", [])], "available": data["available_traces"], "requested": req.traces, "gyro_col_exists": "gyroADC_0_" in log.dataframe.columns}, "timestamp": int(time.time() * 1000), "hypothesisId": "H5"}) + "\n")
-    # #endregion
     return data
 
 

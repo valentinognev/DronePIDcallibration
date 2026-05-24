@@ -103,8 +103,6 @@ def run_throttle_spectrum(req: ThrottleSpectrumRequest):
             req.session_id, req.file_idx, req.log_idx, req.epoch_start, req.epoch_end
         )
         throttle = get_trace(df, "throttle", None)
-        if throttle is None and "rcCommand_3_" in df.columns:
-            throttle = df["rcCommand_3_"].values
         y = get_trace(df, req.trace, req.axis)
         if throttle is None or y is None:
             raise HTTPException(400, "Required traces not found")

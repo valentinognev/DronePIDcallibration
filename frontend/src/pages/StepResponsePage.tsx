@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
-import { PLOT_LAYOUT_BASE } from '../lib/constants';
 import { api } from '../lib/api';
+import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
 export function StepResponsePage() {
+  const plotLayoutBase = usePlotLayoutBase();
   const { sessionId, files } = useSessionStore();
   const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(false);
@@ -55,11 +56,11 @@ export function StepResponsePage() {
               <Plot
                 data={traces}
                 layout={{
-                  ...PLOT_LAYOUT_BASE,
+                  ...plotLayoutBase,
                   title: `${axis.charAt(0).toUpperCase() + axis.slice(1)} Step Response`,
                   height: 250,
-                  xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: 'Time (ms)' },
-                  yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: 'Response', range: [0, 1.5] },
+                  xaxis: { ...plotLayoutBase.xaxis, title: 'Time (ms)' },
+                  yaxis: { ...plotLayoutBase.yaxis, title: 'Response', range: [0, 1.5] },
                 }}
                 config={{ responsive: true }}
                 style={{ width: '70%' }}

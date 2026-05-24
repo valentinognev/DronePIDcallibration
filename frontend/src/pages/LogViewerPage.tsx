@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { EpochRangeSlider } from '../components/EpochRangeSlider';
 import { FileDropzone } from '../components/FileDropzone';
 import { TimeSeriesPlot } from '../components/TimeSeriesPlot';
 import { TraceTogglePanel } from '../components/TraceTogglePanel';
@@ -9,7 +10,7 @@ export function LogViewerPage() {
   const {
     files, traceData, loading, error, settings, visibleTraces,
     uploadFiles, refreshTraces, setSettings, toggleTrace,
-    selectedFileIdx, setSelectedFile, reset, initSession,
+    selectedFileIdx, setSelectedFile, setEpoch, reset, initSession,
   } = useSessionStore();
 
   useEffect(() => {
@@ -20,20 +21,18 @@ export function LogViewerPage() {
     if (files.length > 0) refreshTraces();
   }, [settings.plotR, settings.plotP, settings.plotY, settings.lineSmooth, visibleTraces]);
 
-  // #region agent log
-  useEffect(() => {
-    const rollFiltered = traceData?.panels?.roll?.filter((t) => visibleTraces.includes(t.key)) ?? [];
-    const pitchFiltered = traceData?.panels?.pitch?.filter((t) => visibleTraces.includes(t.key)) ?? [];
-    const yawFiltered = traceData?.panels?.yaw?.filter((t) => visibleTraces.includes(t.key)) ?? [];
-    const motorFiltered = traceData?.motor_panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
-    fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'LogViewerPage.tsx:render',message:'render state',data:{filesCount:files.length,hasTraceData:!!traceData,loading,error,plotR:settings.plotR,plotP:settings.plotP,plotY:settings.plotY,filteredCounts:{roll:rollFiltered.length,pitch:pitchFiltered.length,yaw:yawFiltered.length,motor:motorFiltered.length},visibleTraces},timestamp:Date.now(),hypothesisId:'H2,H3'})}).catch(()=>{});
-  }, [files.length, traceData, loading, error, settings.plotR, settings.plotP, settings.plotY, visibleTraces]);
-  // #endregion
-
   const available = traceData?.available_traces || [
     'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
     'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',
   ];
+
+  const motorPanelTraces =
+    traceData?.motor_panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+  const throttleTraces = motorPanelTraces.filter((t) => t.key === 'throttle');
+  const motorRpmTraces = motorPanelTraces.filter((t) => t.key.startsWith('motor_'));
+  const motorsUseRpm =
+    traceData?.motor_panel_units?.motors === 'rpm' ||
+    motorRpmTraces.some((t) => t.yaxis === 'y2');
 
   return (
     <div className="flex gap-4 h-[calc(100vh-80px)]">
@@ -45,11 +44,24 @@ export function LogViewerPage() {
         onYScaleChange={(v) => setSettings({ yScale: v })}
       />
 
-      <div className="flex-1 flex flex-col gap-2 overflow-auto">
+      <div className="flex-1 flex flex-col min-h-0 gap-2">
         {files.length === 0 ? (
           <FileDropzone onFiles={uploadFiles} />
         ) : (
           <>
+            {traceData?.full_time_range && traceData.epoch && (
+              <div className="shrink-0">
+                <EpochRangeSlider
+                  min={traceData.full_time_range[0]}
+                  max={traceData.full_time_range[1]}
+                  start={traceData.epoch[0]}
+                  end={traceData.epoch[1]}
+                  onCommit={setEpoch}
+                  disabled={loading}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
             {traceData?.panels?.roll && settings.plotR && (
               <TimeSeriesPlot
                 title="Roll (deg/s)"
@@ -77,19 +89,40 @@ export function LogViewerPage() {
                 lineWidth={settings.lineWidth}
               />
             )}
-            {traceData?.motor_panel && traceData.motor_panel.length > 0 && (
+            {motorPanelTraces.length > 0 && motorsUseRpm ? (
+              <>
+                {throttleTraces.length > 0 && (
+                  <TimeSeriesPlot
+                    title="Throttle (%)"
+                    traces={throttleTraces}
+                    yLabel="Throttle (%)"
+                    yRange={[0, 100]}
+                    lineWidth={settings.lineWidth}
+                  />
+                )}
+                {motorRpmTraces.length > 0 && (
+                  <TimeSeriesPlot
+                    title="Motor (RPM)"
+                    traces={motorRpmTraces}
+                    yLabel="RPM"
+                    lineWidth={settings.lineWidth}
+                  />
+                )}
+              </>
+            ) : motorPanelTraces.length > 0 ? (
               <TimeSeriesPlot
-                title="Throttle | Motor (%)"
-                traces={traceData.motor_panel.filter((t) => visibleTraces.includes(t.key))}
+                title="Throttle (%) | Motor (%)"
+                traces={motorPanelTraces}
                 yLabel="Throttle | Motor (%)"
                 yRange={[0, 100]}
                 lineWidth={settings.lineWidth}
               />
-            )}
+            ) : null}
+            </div>
           </>
         )}
-        {loading && <p className="text-sm text-blue-400">Loading...</p>}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {loading && <p className="text-sm text-blue-400 shrink-0">Loading...</p>}
+        {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
       </div>
 
       <div className="panel w-56 shrink-0 space-y-3">
@@ -162,10 +195,7 @@ export function LogViewerPage() {
         <select
           className="select-input"
           value={settings.theme}
-          onChange={(e) => {
-            setSettings({ theme: e.target.value as 'dark' | 'light' });
-            document.body.className = e.target.value;
-          }}
+          onChange={(e) => setSettings({ theme: e.target.value as 'dark' | 'light' })}
         >
           <option value="dark">Dark Theme</option>
           <option value="light">Light Theme</option>

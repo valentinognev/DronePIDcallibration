@@ -1,4 +1,5 @@
-import { TRACE_COLORS } from '../lib/constants';
+import { getTraceColor } from '../lib/constants';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 interface Props {
   traces: string[];
@@ -28,6 +29,8 @@ const TRACE_LABELS: Record<string, string> = {
 };
 
 export function TraceTogglePanel({ traces, visible, onToggle, yScale, onYScaleChange }: Props) {
+  const theme = useAppTheme();
+
   return (
     <div className="panel w-48 shrink-0 overflow-y-auto max-h-full">
       <h3 className="text-sm font-semibold mb-2">Selection</h3>
@@ -46,7 +49,7 @@ export function TraceTogglePanel({ traces, visible, onToggle, yScale, onYScaleCh
               checked={visible.includes(t)}
               onChange={() => onToggle(t)}
             />
-            <span style={{ color: TRACE_COLORS[t] || '#fff' }}>{TRACE_LABELS[t] || t}</span>
+            <span style={{ color: getTraceColor(t, theme) }}>{TRACE_LABELS[t] || t}</span>
           </label>
         ))}
       </div>

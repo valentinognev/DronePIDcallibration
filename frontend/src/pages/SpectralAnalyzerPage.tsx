@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
-import { PLOT_LAYOUT_BASE } from '../lib/constants';
 import { api } from '../lib/api';
+import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
 export function SpectralAnalyzerPage() {
@@ -86,6 +86,7 @@ function SpectrumPanel({
   axis: string;
   sub: boolean;
 }) {
+  const plotLayoutBase = usePlotLayoutBase();
   const traces: Plotly.Data[] = [];
   const colors = ['#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff'];
 
@@ -113,11 +114,11 @@ function SpectrumPanel({
     <Plot
       data={traces}
       layout={{
-        ...PLOT_LAYOUT_BASE,
+        ...plotLayoutBase,
         title: `${axis.charAt(0).toUpperCase() + axis.slice(1)} | ${sub ? 'Sub 100Hz' : 'Full Spectrum'}`,
         height: 220,
-        xaxis: { ...PLOT_LAYOUT_BASE.xaxis, title: 'Frequency (Hz)' },
-        yaxis: { ...PLOT_LAYOUT_BASE.yaxis, title: 'PSD (dB)' },
+        xaxis: { ...plotLayoutBase.xaxis, title: 'Frequency (Hz)' },
+        yaxis: { ...plotLayoutBase.yaxis, title: 'PSD (dB)' },
       }}
       config={{ responsive: true, displayModeBar: false }}
       style={{ width: '100%' }}

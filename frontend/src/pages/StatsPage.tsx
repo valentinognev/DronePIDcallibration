@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
 import { AxisSelector } from '../components/AxisSelector';
-import { PLOT_LAYOUT_BASE } from '../lib/constants';
 import { api } from '../lib/api';
+import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
 export function StatsPage() {
+  const plotLayoutBase = usePlotLayoutBase();
   const { sessionId, selectedFileIdx } = useSessionStore();
   const [axis, setAxis] = useState(0);
   const [stats, setStats] = useState<Record<string, unknown> | null>(null);
@@ -61,7 +62,7 @@ export function StatsPage() {
                   marker: { colors: ['#00b300', '#1a66cc', '#ff9900', '#ff33cc'] },
                 },
               ]}
-              layout={{ ...PLOT_LAYOUT_BASE, height: 300, showlegend: true }}
+              layout={{ ...plotLayoutBase, height: 300, showlegend: true }}
               config={{ responsive: true }}
               style={{ width: '100%' }}
             />
@@ -80,10 +81,10 @@ export function StatsPage() {
               line: { color: ['#e60000', '#ff9900', '#0099ff', '#00cccc'][i] },
             }))}
             layout={{
-              ...PLOT_LAYOUT_BASE,
+              ...plotLayoutBase,
               height: 300,
-              xaxis: { title: 'Frequency (Hz)' },
-              yaxis: { title: 'PSD (dB)' },
+              xaxis: { ...plotLayoutBase.xaxis, title: 'Frequency (Hz)' },
+              yaxis: { ...plotLayoutBase.yaxis, title: 'PSD (dB)' },
             }}
             config={{ responsive: true }}
             style={{ width: '100%' }}

@@ -1,6 +1,7 @@
 import type { ComponentProps } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js/dist/plotly.js';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 const createPlot =
   typeof createPlotlyComponent === 'function'
@@ -17,5 +18,6 @@ const PlotlyPlot = createPlot(plotly);
 type PlotProps = ComponentProps<typeof PlotlyPlot>;
 
 export default function Plot(props: PlotProps) {
-  return <PlotlyPlot {...props} />;
+  const theme = useAppTheme();
+  return <PlotlyPlot {...props} key={theme} />;
 }
