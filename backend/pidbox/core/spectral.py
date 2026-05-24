@@ -18,6 +18,8 @@ def psd_2d(y: np.ndarray, f_khz: float, psd: bool = True) -> tuple[np.ndarray, n
     """
     y = np.asarray(y, dtype=float).ravel()
     n = len(y)
+    if n == 0:
+        return np.array([]), np.array([])
     fs_hz = f_khz * 1000
     freqs = (fs_hz * np.arange(0, n // 2 + 1)) / n
 

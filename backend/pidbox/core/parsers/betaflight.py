@@ -12,12 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pidbox.config import (
-    DEFAULT_EPOCH_END_TRIM_SEC,
-    DEFAULT_EPOCH_START_SEC,
-    US2SEC,
-    require_decoder,
-)
+from pidbox.config import US2SEC, default_epoch_bounds, require_decoder
 from pidbox.core.debug_modes import debug_mode_indices
 from pidbox.core.parsers.base import LoadedLog, LogParser, register_parser
 from pidbox.core.parsers.common import (
@@ -131,6 +126,7 @@ class BetaflightParser(LogParser):
 
             roll_pidf, pitch_pidf, yaw_pidf = parse_pidf(setup_info)
             duration_sec = (df["time_us"].iloc[-1] - df["time_us"].iloc[0]) / US2SEC
+            epoch_start, epoch_end = default_epoch_bounds(duration_sec)
 
             logs.append(
                 LoadedLog(
@@ -148,8 +144,8 @@ class BetaflightParser(LogParser):
                     roll_pidf=roll_pidf,
                     pitch_pidf=pitch_pidf,
                     yaw_pidf=yaw_pidf,
-                    default_epoch_start=DEFAULT_EPOCH_START_SEC,
-                    default_epoch_end=round(duration_sec - DEFAULT_EPOCH_END_TRIM_SEC, 1),
+                    default_epoch_start=epoch_start,
+                    default_epoch_end=epoch_end,
                 )
             )
         return logs
