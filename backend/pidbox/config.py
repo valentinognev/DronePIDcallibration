@@ -12,6 +12,15 @@ UPLOAD_DIR = DATA_DIR / "uploads"
 
 DEFAULT_EPOCH_START_SEC = 2.0
 DEFAULT_EPOCH_END_TRIM_SEC = 1.0
+
+
+def default_epoch_bounds(duration_sec: float) -> tuple[float, float]:
+    """Return default analysis window clamped to a valid range for log duration."""
+    end = duration_sec - DEFAULT_EPOCH_END_TRIM_SEC
+    start = DEFAULT_EPOCH_START_SEC
+    if duration_sec <= 0 or start >= end:
+        return 0.0, round(duration_sec, 1)
+    return start, round(end, 1)
 DOWNSAMPLE_MULTIPLIER = 5
 US2SEC = 1_000_000
 MAX_MOTOR_OUTPUT = 2000

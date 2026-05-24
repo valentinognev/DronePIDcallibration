@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pidbox.config import DEFAULT_EPOCH_END_TRIM_SEC, DEFAULT_EPOCH_START_SEC, US2SEC
+from pidbox.config import US2SEC, default_epoch_bounds
 from pidbox.core.debug_modes import debug_mode_indices
 from pidbox.core.parsers.base import LoadedLog, LogParser, register_parser
 
@@ -93,6 +93,7 @@ class ArdupilotParser(LogParser):
         lograte = round((1000 / np.median(np.diff(df["time_us"].values))) * 10) / 10
         dbg_idx = debug_mode_indices("ArduPilot", 0, 0)
         duration_sec = (df["time_us"].iloc[-1] - df["time_us"].iloc[0]) / US2SEC
+        epoch_start, epoch_end = default_epoch_bounds(duration_sec)
 
         return [
             LoadedLog(
@@ -110,7 +111,7 @@ class ArdupilotParser(LogParser):
                 roll_pidf="",
                 pitch_pidf="",
                 yaw_pidf="",
-                default_epoch_start=DEFAULT_EPOCH_START_SEC,
-                default_epoch_end=round(duration_sec - DEFAULT_EPOCH_END_TRIM_SEC, 1),
+                default_epoch_start=epoch_start,
+                default_epoch_end=epoch_end,
             )
         ]

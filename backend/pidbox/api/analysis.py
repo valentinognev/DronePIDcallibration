@@ -37,6 +37,33 @@ def _get_epoched_log(session_id: str, file_idx: int, log_idx: int, epoch_start, 
     return log, df, es, ee
 
 
+def _to_json(obj):
+    """Convert numpy arrays and non-JSON floats in nested dicts for serialization."""
+    import math
+
+    import numpy as np
+
+    if isinstance(obj, np.ndarray):
+        if obj.ndim == 0:
+            return _to_json(obj.item())
+        return [_to_json(v) for v in obj.tolist()]
+    if isinstance(obj, dict):
+        return {k: _to_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_json(v) for v in obj]
+    if isinstance(obj, (np.floating, np.integer)):
+        obj = obj.item()
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+    return obj
+
+
+def _trace_or_empty(df, trace_key: str, axis: int = 0):
+    y = get_trace(df, trace_key, axis)
+    return y if y is not None else []
+
+
 @router.post("/spectrum")
 def run_spectrum(req: SpectrumRequest):
     try:
@@ -61,7 +88,7 @@ def run_spectrum(req: SpectrumRequest):
         raise HTTPException(404, "Session not found")
     except IndexError:
         raise HTTPException(404, "File or log not found")
-    return {"results": results}
+    return _to_json({"results": results})
 
 
 @router.post("/step-response")
@@ -112,13 +139,15 @@ def run_throttle_spectrum(req: ThrottleSpectrumRequest):
     except KeyError:
         raise HTTPException(404, "Session not found")
 
-    return {
-        "freq_hz": freq.tolist(),
-        "amp_matrix": amp_mat.tolist(),
-        "throttle_bins": list(range(1, 101)),
-        "rpm_fundamental": fund.tolist(),
-        "rpm_harmonics": harmonics.tolist(),
-    }
+    return _to_json(
+        {
+            "freq_hz": freq.tolist(),
+            "amp_matrix": amp_mat.tolist(),
+            "throttle_bins": list(range(1, 101)),
+            "rpm_fundamental": fund.tolist(),
+            "rpm_harmonics": harmonics.tolist(),
+        }
+    )
 
 
 @router.post("/time-freq")
@@ -143,21 +172,6 @@ def run_time_freq(req: TimeFreqRequest):
     }
 
 
-def _to_json(obj):
-    """Convert numpy arrays in nested dicts to lists for JSON serialization."""
-    import numpy as np
-
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, dict):
-        return {k: _to_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_to_json(v) for v in obj]
-    if isinstance(obj, (np.floating, np.integer)):
-        return obj.item()
-    return obj
-
-
 @router.post("/filter-sim")
 def run_filter_sim(req: FilterSimRequest):
     notch = [(n[0], n[1]) for n in req.notch_configs if len(n) >= 2]
@@ -180,12 +194,12 @@ def run_stats(req: StatsRequest):
         )
         ax = req.axis
         stats = compute_pid_stats(
-            get_trace(df, "gyro", ax) or [],
-            get_trace(df, "setpoint", ax) or [],
-            get_trace(df, "pterm", ax) or [],
-            get_trace(df, "iterm", ax) or [],
-            get_trace(df, "dterm", ax) or [],
-            get_trace(df, "fterm", ax) or [],
+            _trace_or_empty(df, "gyro", ax),
+            _trace_or_empty(df, "setpoint", ax),
+            _trace_or_empty(df, "pterm", ax),
+            _trace_or_empty(df, "iterm", ax),
+            _trace_or_empty(df, "dterm", ax),
+            _trace_or_empty(df, "fterm", ax),
             log.lograte_khz,
         )
         motors = []
