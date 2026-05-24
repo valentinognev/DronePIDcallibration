@@ -101,8 +101,14 @@ export const useSessionStore = create<SessionState>()(
           const session = await api.getSession(sessionId);
           set({ files: session.files, selectedFileIdx: session.files.length - 1 });
           await get().refreshTraces();
+          // #region agent log
+          fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'sessionStore.ts:uploadFiles',message:'upload completed',data:{sessionId,fileCount:get().files.length,hasTraceData:!!get().traceData,error:get().error},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
         } catch (e) {
           set({ error: String(e) });
+          // #region agent log
+          fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'sessionStore.ts:uploadFiles',message:'upload failed',data:{error:String(e)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
         } finally {
           set({ loading: false });
         }
@@ -127,8 +133,14 @@ export const useSessionStore = create<SessionState>()(
             smooth_factor: settings.lineSmooth,
           });
           set({ traceData: data, error: null });
+          // #region agent log
+          fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'sessionStore.ts:refreshTraces',message:'traces loaded',data:{rollKeys:(data.panels?.roll||[]).map(t=>t.key),pitchKeys:(data.panels?.pitch||[]).map(t=>t.key),motorCount:data.motor_panel?.length??0,available:data.available_traces,visibleTraces},timestamp:Date.now(),hypothesisId:'H3,H5'})}).catch(()=>{});
+          // #endregion
         } catch (e) {
           set({ error: String(e) });
+          // #region agent log
+          fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'sessionStore.ts:refreshTraces',message:'traces failed',data:{error:String(e)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
         } finally {
           set({ loading: false });
         }

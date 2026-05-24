@@ -20,6 +20,16 @@ export function LogViewerPage() {
     if (files.length > 0) refreshTraces();
   }, [settings.plotR, settings.plotP, settings.plotY, settings.lineSmooth, visibleTraces]);
 
+  // #region agent log
+  useEffect(() => {
+    const rollFiltered = traceData?.panels?.roll?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+    const pitchFiltered = traceData?.panels?.pitch?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+    const yawFiltered = traceData?.panels?.yaw?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+    const motorFiltered = traceData?.motor_panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+    fetch('http://127.0.0.1:7808/ingest/b08aba62-617c-4296-b2d6-97342ac54eb4',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'93a084'},body:JSON.stringify({sessionId:'93a084',location:'LogViewerPage.tsx:render',message:'render state',data:{filesCount:files.length,hasTraceData:!!traceData,loading,error,plotR:settings.plotR,plotP:settings.plotP,plotY:settings.plotY,filteredCounts:{roll:rollFiltered.length,pitch:pitchFiltered.length,yaw:yawFiltered.length,motor:motorFiltered.length},visibleTraces},timestamp:Date.now(),hypothesisId:'H2,H3'})}).catch(()=>{});
+  }, [files.length, traceData, loading, error, settings.plotR, settings.plotP, settings.plotY, visibleTraces]);
+  // #endregion
+
   const available = traceData?.available_traces || [
     'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
     'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',

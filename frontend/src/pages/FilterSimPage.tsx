@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Plot from 'react-plotly.js';
+import Plot from '../components/Plot';
 import { PLOT_LAYOUT_BASE } from '../lib/constants';
 import { api } from '../lib/api';
 

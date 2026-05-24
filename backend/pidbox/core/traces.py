@@ -35,13 +35,16 @@ TRACE_DEFS: dict[str, dict[str, Any]] = {
 }
 
 
+def _is_per_axis(defn: dict[str, Any]) -> bool:
+    return "{axis}" in defn["col"]
+
+
 def _col_name(trace_key: str, axis_idx: int | None) -> str | None:
     defn = TRACE_DEFS.get(trace_key)
     if not defn:
         return None
-    if defn.get("axis") is None:
-        col = defn["col"]
-        return col
+    if not _is_per_axis(defn):
+        return defn["col"]
     if axis_idx is None:
         return None
     return defn["col"].format(axis=axis_idx)
@@ -51,11 +54,13 @@ def _resolve_col(df: pd.DataFrame, trace_key: str, axis_idx: int | None) -> str 
     defn = TRACE_DEFS.get(trace_key)
     if not defn:
         return None
-    if defn.get("axis") is None:
+    if not _is_per_axis(defn):
         candidates = [defn["col"]] + defn.get("alt_cols", [])
         for c in candidates:
             if c in df.columns:
                 return c
+        return None
+    if axis_idx is None:
         return None
     col = defn["col"].format(axis=axis_idx)
     return col if col in df.columns else None
@@ -93,7 +98,7 @@ def extract_log_viewer_traces(
         axis_name = AXIS_NAMES[axis_idx]
         traces = []
         for key in trace_keys:
-            if key == "throttle":
+            if key == "throttle" or key.startswith("motor_"):
                 continue
             y = get_trace(df, key, axis_idx)
             if y is None:
@@ -164,8 +169,9 @@ def extract_log_viewer_traces(
 def list_available_traces(df: pd.DataFrame) -> list[str]:
     available = []
     for key, defn in TRACE_DEFS.items():
-        if defn.get("axis") is None:
-            if defn["col"] in df.columns:
+        if not _is_per_axis(defn):
+            candidates = [defn["col"]] + defn.get("alt_cols", [])
+            if any(c in df.columns for c in candidates):
                 available.append(key)
         else:
             for ax in range(3):

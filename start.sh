@@ -5,6 +5,18 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 BACKEND="$ROOT/backend"
 FRONTEND="$ROOT/frontend"
 VENV="$BACKEND/.venv"
+ENV_FILE="$ROOT/.pidbox.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
+elif [[ -x "$ROOT/tools/bin/blackbox_decode" ]]; then
+  export PIDBOX_ROOT="$ROOT"
+  export BLACKBOX_DECODE="$ROOT/tools/bin/blackbox_decode"
+  export BLACKBOX_DECODE_INAV="$ROOT/tools/bin/blackbox_decode_INAV"
+fi
 
 if [[ ! -d "$VENV" ]] || [[ ! -f "$VENV/bin/activate" ]]; then
   echo "ERROR: Backend venv not found. Run ./install.sh first." >&2
@@ -13,6 +25,11 @@ fi
 
 if [[ ! -d "$FRONTEND/node_modules" ]]; then
   echo "ERROR: Frontend dependencies not installed. Run ./install.sh first." >&2
+  exit 1
+fi
+
+if [[ ! -x "${BLACKBOX_DECODE:-$ROOT/tools/bin/blackbox_decode}" ]]; then
+  echo "ERROR: blackbox_decode not found. Run ./install.sh first." >&2
   exit 1
 fi
 
@@ -32,7 +49,7 @@ trap cleanup EXIT INT TERM
 echo "==> Starting PIDToolBox"
 echo "    Backend:  http://localhost:8000"
 echo "    Frontend: http://localhost:5173"
-echo "    Press Ctrl+C to stop"
+echo "    Press Ctrl+C to stop (or run ./kill.sh from another terminal)"
 echo ""
 
 cd "$BACKEND"

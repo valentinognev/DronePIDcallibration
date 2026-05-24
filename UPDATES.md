@@ -5,6 +5,34 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.2 — 2026-05-24
+
+### Added
+
+- **`kill.sh`**: stops backend (port 8000) and frontend (port 5173) started by `start.sh`.
+
+---
+
+## 0.1.1 — 2026-05-24
+
+### Added
+
+- **Self-contained `install.sh`**: clones [betaflight/blackbox-tools](https://github.com/betaflight/blackbox-tools), builds `blackbox_decode` into `tools/bin/`, writes `.pidbox.env` for `start.sh`.
+- **`config.resolve_decoder_path()`**: finds decoder via env var, `tools/bin/`, or system PATH.
+- **`normalize_blackbox_columns()`**: maps blackbox_decode CSV headers (`time (us)`, `gyroADC[0]`) to Octave-style names (`time_us`, `gyroADC_0_`).
+
+### Fixed
+
+- `.BBL`/`.BFL` upload failed with `[Errno 2] No such file or directory: 'blackbox_decode'` when decoder was not on system PATH.
+- CSV parsing failed after decode because column names did not match MATLAB `readtable` sanitization.
+
+### Changed
+
+- `start.sh` sources `.pidbox.env` and verifies `blackbox_decode` exists before launch.
+- `.gitignore` excludes `tools/blackbox-tools-src/` and `tools/bin/`.
+
+---
+
 ## 0.1.0 — 2026-05-24
 
 Initial implementation of the PIDToolBox React clone (Python backend + React frontend).

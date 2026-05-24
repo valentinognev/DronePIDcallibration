@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pidbox.config import BLACKBOX_DECODE_INAV, DEFAULT_EPOCH_END_TRIM_SEC, DEFAULT_EPOCH_START_SEC, US2SEC
+from pidbox.config import DEFAULT_EPOCH_END_TRIM_SEC, DEFAULT_EPOCH_START_SEC, US2SEC, require_decoder
 from pidbox.core.debug_modes import debug_mode_indices
 from pidbox.core.parsers.base import LoadedLog, LogParser, register_parser
 from pidbox.core.parsers.common import (
@@ -42,8 +42,8 @@ class InavParser(LogParser):
             workdir = Path(tempfile.mkdtemp(prefix="pidbox_inav_"))
             dest = workdir / path.name
             shutil.copy2(path, dest)
-            decoder = shutil.which(BLACKBOX_DECODE_INAV) or BLACKBOX_DECODE_INAV
-            subprocess.run([decoder, str(dest)], capture_output=True, cwd=workdir)
+            decoder = require_decoder("BLACKBOX_DECODE_INAV", "blackbox_decode_INAV")
+            subprocess.run([str(decoder), str(dest)], capture_output=True, cwd=workdir)
             csv_paths = sorted(
                 p
                 for p in Path(workdir).glob(f"{dest.stem}*.csv")

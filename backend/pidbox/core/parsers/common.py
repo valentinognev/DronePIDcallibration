@@ -11,8 +11,27 @@ import pandas as pd
 from pidbox.config import MAX_MOTOR_OUTPUT, US2SEC
 
 
+def _matlabify_column(name: str) -> str:
+    """Convert blackbox_decode CSV headers to names matching Octave readtable."""
+    name = name.strip()
+    if name == "time (us)":
+        return "time_us"
+    name = re.sub(r"\[(\d+)\]", r"_\1_", name)
+    name = re.sub(r" \(([^)]+)\)", lambda m: "_" + m.group(1).replace(" ", "_"), name)
+    if not name.endswith("_"):
+        name += "_"
+    return name
+
+
+def normalize_blackbox_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = [_matlabify_column(c) for c in df.columns]
+    return df
+
+
 def read_csv_log(path: Path) -> pd.DataFrame:
-    return pd.read_csv(path, low_memory=False)
+    df = pd.read_csv(path, low_memory=False)
+    return normalize_blackbox_columns(df)
 
 
 def extract_setup_info_from_header(

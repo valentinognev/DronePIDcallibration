@@ -12,7 +12,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pidbox.config import BLACKBOX_DECODE, BLACKBOX_DECODE_INAV, DEFAULT_EPOCH_END_TRIM_SEC, DEFAULT_EPOCH_START_SEC, US2SEC
+from pidbox.config import (
+    DEFAULT_EPOCH_END_TRIM_SEC,
+    DEFAULT_EPOCH_START_SEC,
+    US2SEC,
+    require_decoder,
+)
 from pidbox.core.debug_modes import debug_mode_indices
 from pidbox.core.parsers.base import LoadedLog, LogParser, register_parser
 from pidbox.core.parsers.common import (
@@ -24,26 +29,25 @@ from pidbox.core.parsers.common import (
 )
 
 
-def _find_decoder(use_inav: bool = False) -> str:
-    name = BLACKBOX_DECODE_INAV if use_inav else BLACKBOX_DECODE
-    if Path(name).is_file():
-        return name
-    which = shutil.which(name)
-    if which:
-        return which
-    return name
-
-
 def _decode_blackbox(source: Path, use_inav: bool = False) -> tuple[list[Path], str]:
     """Run blackbox_decode and return list of CSV paths."""
     workdir = Path(tempfile.mkdtemp(prefix="pidbox_decode_"))
     dest = workdir / source.name
     shutil.copy2(source, dest)
 
-    decoder = _find_decoder(use_inav)
-    cmd = [decoder, str(dest)]
+    if use_inav:
+        decoder = require_decoder("BLACKBOX_DECODE_INAV", "blackbox_decode_INAV")
+    else:
+        decoder = require_decoder("BLACKBOX_DECODE", "blackbox_decode")
+
+    cmd = [str(decoder), str(dest)]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=workdir)
     decode_output = result.stdout + result.stderr
+
+    if result.returncode != 0 and not decode_output:
+        raise RuntimeError(
+            f"{decoder.name} failed (exit {result.returncode}) for {source.name}"
+        )
 
     base = dest.stem
     csv_files = sorted(Path(p) for p in glob.glob(str(workdir / f"{base}*.csv")))

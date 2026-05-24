@@ -34,6 +34,11 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+.pidbox.env
+
+# Built blackbox tools (install.sh)
+tools/blackbox-tools-src/
+tools/bin/
 
 # Runtime / upload cache (if ever created inside the repo)
 .cache/

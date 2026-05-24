@@ -9,16 +9,17 @@ A modern web reimplementation of [PIDtoolbox](https://github.com/bw1129/PIDtoolb
 
 ## Quick start
 
-Requires **Python 3.11+**, **Node.js 20+**, and **npm** on the host (no Docker).
+Requires **Python 3.11+**, **Node.js 20+**, **npm**, **git**, **gcc**, and **make** on the host (no Docker).
 
 ```bash
-./install.sh   # once: venv, deps, tests, frontend build
+./install.sh   # once: builds blackbox_decode, venv, deps, tests, frontend build
 ./start.sh     # backend :8000 + frontend :5173
+./kill.sh      # stop both servers
 ```
 
-Open **http://localhost:5173** in a browser. The Vite dev server proxies `/api` to the FastAPI backend.
+`install.sh` is self-contained: it clones and compiles [Betaflight blackbox-tools](https://github.com/betaflight/blackbox-tools) into `tools/bin/blackbox_decode` and writes `.pidbox.env` for `start.sh`. No system-wide install required.
 
-For `.BBL` / `.BFL` files, install [Betaflight blackbox tools](https://github.com/betaflight/blackbox-tools) and ensure `blackbox_decode` is on your `PATH`. CSV logs work without it.
+Open **http://localhost:5173** in a browser. The Vite dev server proxies `/api` to the FastAPI backend.
 
 ---
 
