@@ -5,6 +5,18 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.6 — 2026-05-24
+
+### Fixed
+
+- **Default epoch (PID-001)**: short logs no longer crash traces API; default window clamped to valid bounds.
+- **Session workflow (PID-002, PID-003)**: Log Viewer no longer resets session on remount; session and file metadata persist across refresh.
+- **Analysis APIs (PID-004–PID-006)**: stats, spectrum, and throttle-spectrum endpoints return 200 with JSON-safe payloads.
+- **UI parity (PID-008–PID-012)**: plot epoch drag handles, spectral multi-file/RPM controls, freq-throttle grid, step bar charts, save-figure buttons.
+- **Version label (PID-007)**: header, health endpoint, and changelog aligned at `0.1.6`.
+
+---
+
 ## 0.1.5 — 2026-05-24
 
 ### Fixed

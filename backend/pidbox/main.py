@@ -19,7 +19,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="PIDToolBox API",
-    version="0.1.0",
+    version="0.1.6",
     description="Python backend for multirotor PID tuning log analysis",
     lifespan=lifespan,
 )
@@ -40,4 +40,4 @@ app.include_router(ws.router, prefix="/api/ws", tags=["websocket"])
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": "0.1.6"}
