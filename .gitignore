@@ -1,0 +1,105 @@
+# Python / backend
+backend/.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.pytest_cache/
+backend/pidbox.egg-info/
+backend/dist/
+backend/build/
+*.egg-info/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.pytest_cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Runtime / upload cache (if ever created inside the repo)
+.cache/
+uploads/
+*.parquet
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors & IDEs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Cursor (optional local state)
+.cursor/
+Refs/ScreenShotsLong/Filter simulator.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram 2D PSD.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram ColorDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram FilesDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram PresetsDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram PSD.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram SmoothDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram TopDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram TopFilesandlinesDropBox.png
+Refs/ScreenShotsLong/frequency x throttle Spectrogram.png
+Refs/ScreenShotsLong/Frequency x time spectrogram dropdown smooth.png
+Refs/ScreenShotsLong/Frequency x time spectrogram dropdown smoothtime.png
+Refs/ScreenShotsLong/Frequency x time spectrogram dropdown.png
+Refs/ScreenShotsLong/Frequency x time spectrogram.png
+Refs/ScreenShotsLong/history.png
+Refs/ScreenShotsLong/history2.png
+Refs/ScreenShotsLong/MAINDark.png
+Refs/ScreenShotsLong/OpenFile.png
+Refs/ScreenShotsLong/SetupInfoDark.png
+Refs/ScreenShotsLong/SpectralAnalyzer.png
+Refs/ScreenShotsLong/SPECTRALDARK.png
+Refs/ScreenShotsLong/STEPRESPONSEDark.png
+Refs/ScreenShotsLong/StepresponseTool.png
+Refs/ScreenShotsShort/filterSimulator.png
+Refs/ScreenShotsShort/frequencyXthrottle heatmap.png
+Refs/ScreenShotsShort/frequencyXthrottle heatmap0.png
+Refs/ScreenShotsShort/frequencyXtime0.png
+Refs/ScreenShotsShort/frequencyXtime1.png
+Refs/ScreenShotsShort/main1.png
+Refs/ScreenShotsShort/main2.png
+Refs/ScreenShotsShort/SetupInformation.png
+Refs/ScreenShotsShort/spectralAnalyzer.png
+Refs/ScreenShotsShort/stepresponse0.png
+Refs/ScreenShotsShort/stepresponse1.png

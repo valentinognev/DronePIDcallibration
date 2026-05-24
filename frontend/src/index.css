@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --bg-panel: #252525;
+  --text-primary: #e5e5e5;
+  --text-secondary: #a0a0a0;
+  --accent-red: #cc3333;
+  --accent-blue: #3366cc;
+  --accent-green: #33aa33;
+  --accent-orange: #cc8833;
+  --border: #444444;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.light {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-panel: #eeeeee;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --border: #cccccc;
+}
+
+.btn-run {
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #4ade80;
+  border: 1px solid #15803d;
+}
+
+.btn-run:hover {
+  background: rgb(20 83 45 / 0.3);
+}
+
+.btn-reset {
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: #fb923c;
+  border: 1px solid #c2410c;
+}
+
+.btn-reset:hover {
+  background: rgb(154 52 18 / 0.3);
+}
+
+.panel {
+  border-radius: 0.25rem;
+  border-width: 1px;
+  padding: 0.75rem;
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+.select-input {
+  width: 100%;
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
