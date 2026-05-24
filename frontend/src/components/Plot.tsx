@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import type { ComponentProps } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js/dist/plotly.js';
@@ -17,7 +18,11 @@ const PlotlyPlot = createPlot(plotly);
 
 type PlotProps = ComponentProps<typeof PlotlyPlot>;
 
-export default function Plot(props: PlotProps) {
+const Plot = forwardRef<HTMLDivElement, PlotProps>(function Plot(props, ref) {
   const theme = useAppTheme();
-  return <PlotlyPlot {...props} key={theme} />;
-}
+  return <PlotlyPlot {...props} ref={ref} key={theme} />;
+});
+
+export default Plot;
+
+export type { PlotProps };

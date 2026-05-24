@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { Layout } from './components/Layout';
+import { SessionBootstrap } from './components/SessionBootstrap';
 import { ThemeSync } from './components/ThemeSync';
 import { FilterSimPage } from './pages/FilterSimPage';
 import { FreqThrottlePage } from './pages/FreqThrottlePage';
@@ -15,6 +16,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeSync />
+      <SessionBootstrap />
       <KeyboardShortcuts />
       <Layout>
         <Routes>

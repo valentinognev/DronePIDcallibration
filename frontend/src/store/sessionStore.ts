@@ -29,6 +29,7 @@ interface SessionState {
   setSettings: (s: Partial<AppSettings>) => void;
   toggleTrace: (trace: string) => void;
   initSession: () => Promise<void>;
+  restoreSession: () => Promise<void>;
   uploadFiles: (files: FileList) => Promise<void>;
   refreshTraces: () => Promise<void>;
   setSelectedFile: (idx: number) => void;
@@ -80,13 +81,40 @@ export const useSessionStore = create<SessionState>()(
         })),
 
       initSession: async () => {
-        const { settings } = get();
+        const { sessionId, settings } = get();
+        if (sessionId) return;
+
         set({ loading: true, error: null });
         try {
           const session = await api.createSession(settings.firmware);
-          set({ sessionId: session.session_id, files: [], traceData: null });
+          set({ sessionId: session.session_id });
         } catch (e) {
           set({ error: String(e) });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      restoreSession: async () => {
+        const { sessionId } = get();
+        if (!sessionId) return;
+
+        set({ loading: true, error: null });
+        try {
+          const session = await api.getSession(sessionId);
+          set({ files: session.files, error: null });
+          if (session.files.length > 0) {
+            await get().refreshTraces();
+          }
+        } catch {
+          set({
+            sessionId: null,
+            files: [],
+            traceData: null,
+            selectedFileIdx: 0,
+            selectedLogIdx: 0,
+            error: null,
+          });
         } finally {
           set({ loading: false });
         }
@@ -158,12 +186,20 @@ export const useSessionStore = create<SessionState>()(
           files: [],
           traceData: null,
           selectedFileIdx: 0,
+          selectedLogIdx: 0,
           error: null,
         }),
     }),
     {
       name: 'pidbox-settings',
-      partialize: (s) => ({ settings: s.settings, visibleTraces: s.visibleTraces }),
+      partialize: (s) => ({
+        settings: s.settings,
+        visibleTraces: s.visibleTraces,
+        sessionId: s.sessionId,
+        files: s.files,
+        selectedFileIdx: s.selectedFileIdx,
+        selectedLogIdx: s.selectedLogIdx,
+      }),
       onRehydrateStorage: () => (state) => {
         if (state?.settings.theme) {
           document.body.className = state.settings.theme;
