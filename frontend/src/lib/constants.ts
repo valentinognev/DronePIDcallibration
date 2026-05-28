@@ -95,3 +95,23 @@ export const FILE_OVERLAY_COLORS = [
 ];
 
 export const AXIS_LABELS = ['Roll', 'Pitch', 'Yaw'] as const;
+
+export interface FirmwareOption {
+  key: string;
+  display_name: string;
+}
+
+/** Fallback when GET /sessions/firmwares is unavailable. */
+export const FALLBACK_FIRMWARES: FirmwareOption[] = [
+  { key: 'betaflight', display_name: 'Betaflight' },
+  { key: 'emuflight', display_name: 'Emuflight' },
+  { key: 'inav', display_name: 'INAV' },
+  { key: 'fettec', display_name: 'FETTEC' },
+  { key: 'quicksilver', display_name: 'QuickSilver' },
+  { key: 'rotorflight', display_name: 'Rotorflight' },
+  { key: 'kiss', display_name: 'KISS Ultra' },
+  { key: 'ardupilot', display_name: 'ArduPilot' },
+  { key: 'px4', display_name: 'PX4' },
+];
+
+export const LOG_FILE_ACCEPT = '.bbl,.bfl,.csv,.bin,.json,.txt,.ulg';

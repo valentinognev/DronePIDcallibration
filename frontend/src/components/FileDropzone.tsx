@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { LOG_FILE_ACCEPT } from '../lib/constants';
 
 interface Props {
   onFiles: (files: FileList) => void;
@@ -6,7 +7,7 @@ interface Props {
   label?: string;
 }
 
-export function FileDropzone({ onFiles, accept = '.bbl,.bfl,.csv,.bin,.json,.txt', label = 'Drop log files here or click to browse' }: Props) {
+export function FileDropzone({ onFiles, accept = LOG_FILE_ACCEPT, label = 'Drop log files here or click to browse' }: Props) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -30,7 +31,7 @@ export function FileDropzone({ onFiles, accept = '.bbl,.bfl,.csv,.bin,.json,.txt
       }}
     >
       <p className="text-[var(--text-secondary)]">{label}</p>
-      <p className="text-xs mt-1 text-[var(--text-secondary)]">.BBL, .BFL, .CSV, .BIN, .JSON</p>
+      <p className="text-xs mt-1 text-[var(--text-secondary)]">.BBL, .BFL, .CSV, .BIN, .JSON, .ULG</p>
     </div>
   );
 }

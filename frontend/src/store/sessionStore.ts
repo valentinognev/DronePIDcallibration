@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import type { FileInfo, TraceData } from '../lib/api';
+import { FALLBACK_FIRMWARES, type FirmwareOption } from '../lib/constants';
 
 export interface AppSettings {
   firmware: string;
@@ -25,8 +26,11 @@ interface SessionState {
   error: string | null;
   settings: AppSettings;
   visibleTraces: string[];
+  firmwareOptions: FirmwareOption[];
 
   setSettings: (s: Partial<AppSettings>) => void;
+  loadFirmwares: () => Promise<void>;
+  setFirmware: (firmware: string, force?: boolean) => Promise<void>;
   toggleTrace: (trace: string) => void;
   initSession: () => Promise<void>;
   restoreSession: () => Promise<void>;
@@ -41,6 +45,10 @@ const DEFAULT_TRACES = [
   'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
   'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',
 ];
+
+function fileListHasUlg(files: FileList): boolean {
+  return Array.from(files).some((f) => f.name.toLowerCase().endsWith('.ulg'));
+}
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -64,6 +72,41 @@ export const useSessionStore = create<SessionState>()(
         singlePanel: false,
       },
       visibleTraces: ['gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3'],
+      firmwareOptions: FALLBACK_FIRMWARES,
+
+      loadFirmwares: async () => {
+        try {
+          const list = await api.firmwares();
+          if (list.length > 0) {
+            set({ firmwareOptions: list });
+          }
+        } catch {
+          // keep FALLBACK_FIRMWARES
+        }
+      },
+
+      setFirmware: async (firmware, force = false) => {
+        const { settings } = get();
+        if (!force && settings.firmware === firmware) return;
+
+        set({ loading: true, error: null });
+        try {
+          const session = await api.createSession(firmware);
+          set({
+            sessionId: session.session_id,
+            settings: { ...settings, firmware },
+            files: [],
+            traceData: null,
+            selectedFileIdx: 0,
+            selectedLogIdx: 0,
+            error: null,
+          });
+        } catch (e) {
+          set({ error: String(e) });
+        } finally {
+          set({ loading: false });
+        }
+      },
 
       setSettings: (s) =>
         set((st) => {
@@ -121,6 +164,24 @@ export const useSessionStore = create<SessionState>()(
       },
 
       uploadFiles: async (fileList) => {
+        if (fileListHasUlg(fileList)) {
+          const { settings, sessionId } = get();
+          let needPx4Session = settings.firmware !== 'px4';
+          if (!needPx4Session && sessionId) {
+            try {
+              const session = await api.getSession(sessionId);
+              needPx4Session = session.firmware !== 'px4';
+            } catch {
+              needPx4Session = true;
+            }
+          } else if (!sessionId) {
+            needPx4Session = true;
+          }
+          if (needPx4Session) {
+            await get().setFirmware('px4', true);
+          }
+        }
+
         let { sessionId } = get();
         if (!sessionId) {
           await get().initSession();
@@ -128,9 +189,10 @@ export const useSessionStore = create<SessionState>()(
         }
         if (!sessionId) return;
 
+        const files = Array.from(fileList);
         set({ loading: true, error: null });
         try {
-          for (const file of Array.from(fileList)) {
+          for (const file of files) {
             await api.uploadFile(sessionId, file);
           }
           const session = await api.getSession(sessionId);

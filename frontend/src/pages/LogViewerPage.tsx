@@ -9,9 +9,14 @@ import { useSessionStore } from '../store/sessionStore';
 export function LogViewerPage() {
   const {
     sessionId, files, traceData, loading, error, settings, visibleTraces,
-    uploadFiles, refreshTraces, setSettings, toggleTrace,
+    uploadFiles, refreshTraces, setSettings, setFirmware, loadFirmwares, toggleTrace,
     selectedFileIdx, setSelectedFile, setEpoch, reset, initSession,
+    firmwareOptions,
   } = useSessionStore();
+
+  useEffect(() => {
+    loadFirmwares();
+  }, [loadFirmwares]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -138,16 +143,13 @@ export function LogViewerPage() {
         <select
           className="select-input"
           value={settings.firmware}
-          onChange={(e) => setSettings({ firmware: e.target.value })}
+          onChange={(e) => void setFirmware(e.target.value)}
         >
-          <option value="betaflight">Betaflight</option>
-          <option value="emuflight">Emuflight</option>
-          <option value="inav">INAV</option>
-          <option value="fettec">FETTEC</option>
-          <option value="quicksilver">QuickSilver</option>
-          <option value="rotorflight">Rotorflight</option>
-          <option value="kiss">KISS Ultra</option>
-          <option value="ardupilot">ArduPilot</option>
+          {firmwareOptions.map((fw) => (
+            <option key={fw.key} value={fw.key}>
+              {fw.display_name}
+            </option>
+          ))}
         </select>
 
         <FileDropzone onFiles={uploadFiles} label="Open File" />

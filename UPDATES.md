@@ -5,7 +5,17 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
-## 0.1.7 — 2026-05-28
+## 0.1.8 — 2026-05-28
+
+### Fixed
+
+- **PX4 ULOG UI (ISSUE-003)**: Log Viewer now supports `.ulg` files and PX4 firmware selection.
+  - `FileDropzone` accept filter includes `.ulg` (via shared `LOG_FILE_ACCEPT` constant).
+  - Firmware dropdown populated from `GET /sessions/firmwares` with `FALLBACK_FIRMWARES` fallback (includes PX4).
+  - Changing firmware in Control Panel creates a new backend session and clears loaded files/trace state.
+  - Uploading any `.ulg` file auto-switches to PX4 firmware (recreates session if needed) before upload.
+
+---
 
 ### Added
 
