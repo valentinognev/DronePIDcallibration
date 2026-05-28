@@ -108,3 +108,6 @@ Refs/ScreenShotsShort/SetupInformation.png
 Refs/ScreenShotsShort/spectralAnalyzer.png
 Refs/ScreenShotsShort/stepresponse0.png
 Refs/ScreenShotsShort/stepresponse1.png
+
+# Agent manager API key (local secret)
+Docs/managerScript/apikey

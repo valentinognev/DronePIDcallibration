@@ -157,8 +157,7 @@ function SpectrumPanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const plotTraces: Plotly.Data[] = [];
 
-  resultList.forEach((file, fi) => {
-    const fileColor = FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length];
+  resultList.forEach((file) => {
     const axes = file.axes as Record<string, Record<string, { freq: number[]; spec: number[]; freq_sub?: number[]; spec_sub?: number[] }>>;
     const data = axes?.[axis];
     if (!data) return;
@@ -173,7 +172,7 @@ function SpectrumPanel({
         type: 'scatter',
         mode: 'lines',
         name: `${String(file.name)} — ${trace}`,
-        line: { color: trace.startsWith('motor_') ? getTraceColor(trace, theme) : fileColor, width: trace.startsWith('motor_') ? 1 : 2 },
+        line: { color: getTraceColor(trace, theme), width: trace.startsWith('motor_') ? 1 : 2 },
       });
     });
   });
