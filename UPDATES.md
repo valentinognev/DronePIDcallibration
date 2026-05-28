@@ -14,6 +14,16 @@ Newest entry always at the top. Every agent must append an entry here when makin
   - Firmware dropdown populated from `GET /sessions/firmwares` with `FALLBACK_FIRMWARES` fallback (includes PX4).
   - Changing firmware in Control Panel creates a new backend session and clears loaded files/trace state.
   - Uploading any `.ulg` file auto-switches to PX4 firmware (recreates session if needed) before upload.
+- **Empty-parse upload rejection (ISSUE-004)**: uploads that yield zero logs now return HTTP 400 immediately with an actionable message instead of succeeding and failing later on `/traces`.
+  - Base message: "No logs could be parsed from this file."
+  - `.ulg` on non-PX4 sessions hints to use firmware `px4`.
+  - When another registered parser recognizes the extension, the error suggests the matching firmware key(s).
+  - No `SessionFile` is added; partial upload bytes are removed from the session directory.
+- **`backend/tests/test_upload_empty_parse.py`**: API and message-builder coverage for empty-parse rejection.
+
+### Changed
+
+- API version `0.1.8`.
 
 ---
 

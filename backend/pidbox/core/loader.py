@@ -22,6 +22,28 @@ def load_log_file(
     return parser.parse(path, log_indices=log_indices)
 
 
+def empty_parse_error_message(path: Path, session_firmware: str) -> str:
+    """Build a user-facing message when parsing yields no logs."""
+    from pidbox.core.parsers.base import PARSERS
+
+    msg = "No logs could be parsed from this file."
+    if path.suffix.lower() == ".ulg":
+        msg += " Use firmware 'px4' for PX4 ULOG files."
+
+    expected = [
+        key
+        for key, cls in PARSERS.items()
+        if key != session_firmware and cls().can_parse(path)
+    ]
+    if expected:
+        hints = ", ".join(f"'{k}'" for k in expected)
+        msg += f" This file may require firmware {hints} (session is '{session_firmware}')."
+    else:
+        msg += f" Session firmware is '{session_firmware}'."
+
+    return msg
+
+
 def list_firmwares() -> list[dict[str, str]]:
     from pidbox.core.parsers.base import PARSERS
 

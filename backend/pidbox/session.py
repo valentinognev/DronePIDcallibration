@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 
 from pidbox.config import CACHE_DIR, UPLOAD_DIR, ensure_dirs
-from pidbox.core.loader import LoadedLog, load_log_file
+from pidbox.core.loader import LoadedLog, empty_parse_error_message, load_log_file
 
 
 @dataclass
@@ -71,6 +71,10 @@ class SessionManager:
         dest.write_bytes(content)
 
         logs = load_log_file(dest, session.firmware, log_indices=log_indices)
+        if not logs:
+            dest.unlink(missing_ok=True)
+            raise ValueError(empty_parse_error_message(dest, session.firmware))
+
         sf = SessionFile(file_id=file_id, original_name=filename, logs=logs)
         for log in logs:
             sf.epoch_start.append(log.default_epoch_start)
