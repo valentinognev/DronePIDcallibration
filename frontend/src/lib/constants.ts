@@ -17,6 +17,11 @@ export const TRACE_LABELS: Record<string, string> = {
   motor_2: 'Motor 3',
   motor_3: 'Motor 4',
   debug: 'Debug',
+  accel: 'Accel',
+  attitude: 'Attitude',
+  attitude_sp: 'Attitude SP',
+  velocity: 'Velocity',
+  velocity_sp: 'Velocity SP',
 };
 
 export const TRACE_COLORS: Record<string, string> = {
@@ -36,7 +41,39 @@ export const TRACE_COLORS: Record<string, string> = {
   motor_2: '#0099ff',
   motor_3: '#00cccc',
   debug: '#ff0000',
+  accel: '#ff66cc',
+  attitude: '#66ff66',
+  attitude_sp: '#ff6666',
+  velocity: '#66ccff',
+  velocity_sp: '#ffcc66',
 };
+
+/** Betaflight / INAV default trace keys for Log Viewer. */
+export const BETAFLIGHT_DEFAULT_TRACES = [
+  'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
+  'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',
+] as const;
+
+/** PX4-only trace keys (also included in DEFAULT_TRACES for toggle labels/colors). */
+export const PX4_EXTRA_TRACES = [
+  'accel', 'attitude', 'attitude_sp', 'velocity', 'velocity_sp',
+] as const;
+
+export const DEFAULT_TRACES = [...BETAFLIGHT_DEFAULT_TRACES, ...PX4_EXTRA_TRACES];
+
+/** Sensible Log Viewer defaults when PX4 channels are available. */
+export const PX4_DEFAULT_VISIBLE = [
+  'gyro', 'setpoint', 'attitude', 'attitude_sp', 'velocity', 'velocity_sp', 'throttle',
+] as const;
+
+export const STEP_SIGNAL_MODES = [
+  { key: 'rate', label: 'Rate' },
+  { key: 'attitude', label: 'Attitude' },
+  { key: 'velocity', label: 'Velocity' },
+  { key: 'accel', label: 'Accel' },
+] as const;
+
+export type StepSignalMode = (typeof STEP_SIGNAL_MODES)[number]['key'];
 
 const PLOT_LAYOUT_DARK = {
   paper_bgcolor: '#1a1a1a',

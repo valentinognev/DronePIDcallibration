@@ -5,7 +5,18 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
-## 0.1.10 — 2026-05-28
+## 0.1.11 — 2026-05-28
+
+### Fixed
+
+- **PX4 Log Viewer + Step Response UI (ISSUE-007)**: frontend now requests and renders PX4 accel/attitude/velocity traces that the backend already exposes.
+  - **`sessionStore.ts`**: removed hard filter to Betaflight-only `DEFAULT_TRACES` in `refreshTraces()`; requests intersection of `visibleTraces` with `available_traces`, pre-includes PX4 keys on first fetch, and auto-enables newly discovered PX4 traces in the toggle panel.
+  - **`constants.ts`**: labels/colors for `accel`, `attitude`, `attitude_sp`, `velocity`, `velocity_sp`; shared `PX4_EXTRA_TRACES`, `DEFAULT_TRACES`, and `STEP_SIGNAL_MODES`.
+  - **`StepResponsePage.tsx`**: signal-mode checkboxes (Rate, Attitude, Velocity, Accel); passes `signals` to `/analysis/step-response`; renders `results[].signals[mode][axis]` with backward-compatible `axes` for rate-only.
+  - **`api.ts`**: typed `StepResponseRequest` / `StepResponseResult`.
+- UI version badge `v0.1.11`.
+
+---
 
 ### Added
 
