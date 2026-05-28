@@ -100,6 +100,42 @@ def get_trace(
     return _scale_trace_values(trace_key, col, y)
 
 
+def _full_time_range(log: LoadedLog) -> list[float]:
+    t0_us = log.dataframe["time_us"].iloc[0]
+    full_t_sec = (log.dataframe["time_us"] - t0_us) / US2SEC
+    return [float(full_t_sec.iloc[0]), float(full_t_sec.iloc[-1])]
+
+
+def _trace_metadata(log: LoadedLog) -> dict[str, Any]:
+    return {
+        "name": log.name,
+        "fw_type": log.fw_type,
+        "roll_pidf": log.roll_pidf,
+        "pitch_pidf": log.pitch_pidf,
+        "yaw_pidf": log.yaw_pidf,
+        "debug_mode": log.debug_mode,
+    }
+
+
+def _empty_epoch_trace_response(
+    log: LoadedLog,
+    epoch_start: float,
+    epoch_end: float,
+    axes: list[int],
+) -> dict[str, Any]:
+    panels = {AXIS_NAMES[axis_idx]: [] for axis_idx in axes}
+    return {
+        "time_range": [epoch_start, epoch_end],
+        "full_time_range": _full_time_range(log),
+        "epoch": [epoch_start, epoch_end],
+        "lograte_khz": log.lograte_khz,
+        "panels": panels,
+        "motor_panel": [],
+        "motor_panel_units": {"throttle": "percent", "motors": "percent"},
+        "metadata": _trace_metadata(log),
+    }
+
+
 def extract_log_viewer_traces(
     log: LoadedLog,
     epoch_start: float,
@@ -111,6 +147,8 @@ def extract_log_viewer_traces(
 ) -> dict[str, Any]:
     """Extract time-series traces for log viewer."""
     df = slice_epoch(log.dataframe, epoch_start, epoch_end)
+    if df.empty:
+        return _empty_epoch_trace_response(log, epoch_start, epoch_end, axes)
     t0 = df["time_us"].iloc[0]
     time_sec = ((df["time_us"] - t0) / US2SEC).values
 
@@ -183,13 +221,9 @@ def extract_log_viewer_traces(
                     }
                 )
 
-    t0_us = log.dataframe["time_us"].iloc[0]
-    full_t_sec = (log.dataframe["time_us"] - t0_us) / US2SEC
-    full_time_range = [float(full_t_sec.iloc[0]), float(full_t_sec.iloc[-1])]
-
     return {
         "time_range": [float(time_sec[0]), float(time_sec[-1])],
-        "full_time_range": full_time_range,
+        "full_time_range": _full_time_range(log),
         "epoch": [epoch_start, epoch_end],
         "lograte_khz": log.lograte_khz,
         "panels": panels,
@@ -198,14 +232,7 @@ def extract_log_viewer_traces(
             "throttle": "percent",
             "motors": "rpm" if motors_use_rpm else "percent",
         },
-        "metadata": {
-            "name": log.name,
-            "fw_type": log.fw_type,
-            "roll_pidf": log.roll_pidf,
-            "pitch_pidf": log.pitch_pidf,
-            "yaw_pidf": log.yaw_pidf,
-            "debug_mode": log.debug_mode,
-        },
+        "metadata": _trace_metadata(log),
     }
 
 

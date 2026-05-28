@@ -80,6 +80,26 @@ def test_pid004_stats_returns_200():
     assert "term_balance" in body["stats"]
 
 
+def test_pid005_traces_empty_epoch_returns_200():
+    session_id = _upload_session(_synthetic_csv_bytes(2.0))
+    r = client.post(
+        f"/api/sessions/{session_id}/traces",
+        json={
+            "file_idx": 0,
+            "log_idx": 0,
+            "axes": [0],
+            "traces": ["gyro"],
+            "epoch_start": 100.0,
+            "epoch_end": 110.0,
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["panels"]["roll"] == []
+    assert data["epoch"] == [100.0, 110.0]
+    assert data["full_time_range"][1] > 0
+
+
 def test_pid005_spectrum_returns_200():
     session_id = _upload_session(_synthetic_csv_bytes(10.0))
     r = client.post(

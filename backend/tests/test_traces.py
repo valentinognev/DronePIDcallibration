@@ -82,3 +82,24 @@ def test_full_time_range_independent_of_epoch():
     data = extract_log_viewer_traces(log, 0.01, 0.05, [0], ["gyro"], smooth_factor=1, downsample=False)
     assert data["full_time_range"] == [0.0, pytest.approx(0.09975)]
     assert data["epoch"] == [0.01, 0.05]
+
+
+def test_empty_epoch_slice_returns_empty_panels():
+    n = 100
+    df = pd.DataFrame(
+        {
+            "time_us": np.arange(n) * 250,
+            "gyroADC_0_": np.linspace(0, 10, n),
+            "setpoint_3_": np.full(n, 500),
+        }
+    )
+    log = _mock_log(df)
+    data = extract_log_viewer_traces(
+        log, 50.0, 60.0, [0, 1], ["gyro", "throttle"], smooth_factor=1, downsample=False
+    )
+    assert data["time_range"] == [50.0, 60.0]
+    assert data["epoch"] == [50.0, 60.0]
+    assert data["full_time_range"] == [0.0, pytest.approx(0.02475)]
+    assert data["panels"] == {"roll": [], "pitch": []}
+    assert data["motor_panel"] == []
+    assert data["metadata"]["name"] == "test.csv"

@@ -5,6 +5,18 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.9 — 2026-05-28
+
+### Fixed
+
+- **Empty epoch slice on `/traces` (PID-005)**: requesting traces for an epoch window outside the log's time span no longer returns HTTP 500. The API responds with HTTP 200 and empty trace panels while preserving epoch bounds, metadata, and `full_time_range` from the full log.
+
+### Changed
+
+- API version `0.1.9`.
+
+---
+
 ## 0.1.8 — 2026-05-28
 
 ### Fixed
