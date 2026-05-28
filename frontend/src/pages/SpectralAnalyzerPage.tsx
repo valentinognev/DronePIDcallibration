@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import Plot from '../components/Plot';
 import { api } from '../lib/api';
-import { FILE_OVERLAY_COLORS, getTraceColor } from '../lib/constants';
+import { FILE_OVERLAY_COLORS, getTraceColor, TRACE_LABELS } from '../lib/constants';
 import { savePlotlyFigure } from '../lib/utils';
 import { useAppTheme, usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
@@ -17,6 +17,7 @@ const MOTOR_PAIRS: Array<{ label: string; traces: string[] }> = [
 ];
 
 export function SpectralAnalyzerPage() {
+  const theme = useAppTheme();
   const { sessionId, files, selectedFileIdx } = useSessionStore();
   const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
   const [rpmOverlay, setRpmOverlay] = useState<{ freq: number[]; fundamental: number[]; harmonics: number[][] } | null>(null);
@@ -120,7 +121,7 @@ export function SpectralAnalyzerPage() {
                 setTraces((tr) => (tr.includes(t) ? tr.filter((x) => x !== t) : [...tr, t]))
               }
             />
-            {t}
+            <span style={{ color: getTraceColor(t, theme) }}>{TRACE_LABELS[t] || t}</span>
           </label>
         ))}
 
