@@ -1,4 +1,4 @@
-import { getTraceColor } from '../lib/constants';
+import { getTraceColor, TRACE_LABELS } from '../lib/constants';
 import { useAppTheme } from '../hooks/useAppTheme';
 
 interface Props {
@@ -8,25 +8,6 @@ interface Props {
   yScale: number;
   onYScaleChange: (v: number) => void;
 }
-
-const TRACE_LABELS: Record<string, string> = {
-  gyro: 'Gyro',
-  gyro_pf: 'Gyro(pf)',
-  pterm: 'P-term',
-  iterm: 'I-term',
-  dterm_pf: 'D-term(pf)',
-  dterm: 'D-term',
-  fterm: 'F-term',
-  setpoint: 'Set point',
-  pidsum: 'PID sum',
-  piderr: 'PID error',
-  throttle: 'Throttle',
-  motor_0: 'Motor 1',
-  motor_1: 'Motor 2',
-  motor_2: 'Motor 3',
-  motor_3: 'Motor 4',
-  debug: 'Debug',
-};
 
 export function TraceTogglePanel({ traces, visible, onToggle, yScale, onYScaleChange }: Props) {
   const theme = useAppTheme();

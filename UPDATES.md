@@ -5,6 +5,14 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.7 — 2026-05-28
+
+### Added
+
+- **Spectral Analyzer (ISSUE-001)**: Trace parameter labels in the Params panel are colorized with `getTraceColor()` to match spectrum plot curves, consistent with Log Viewer `TraceTogglePanel`. Shared `TRACE_LABELS` moved to `constants.ts`.
+
+---
+
 ## 0.1.6 — 2026-05-24
 
 ### Fixed

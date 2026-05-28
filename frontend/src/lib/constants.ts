@@ -1,5 +1,24 @@
 export type AppTheme = 'dark' | 'light';
 
+export const TRACE_LABELS: Record<string, string> = {
+  gyro: 'Gyro',
+  gyro_pf: 'Gyro(pf)',
+  pterm: 'P-term',
+  iterm: 'I-term',
+  dterm_pf: 'D-term(pf)',
+  dterm: 'D-term',
+  fterm: 'F-term',
+  setpoint: 'Set point',
+  pidsum: 'PID sum',
+  piderr: 'PID error',
+  throttle: 'Throttle',
+  motor_0: 'Motor 1',
+  motor_1: 'Motor 2',
+  motor_2: 'Motor 3',
+  motor_3: 'Motor 4',
+  debug: 'Debug',
+};
+
 export const TRACE_COLORS: Record<string, string> = {
   gyro: '#ffffff',
   gyro_pf: '#999999',
