@@ -72,6 +72,105 @@ def _gyro_from_sensor_combined(dataset) -> tuple[np.ndarray, np.ndarray, np.ndar
     return ts_us, gx, gy, gz
 
 
+def _accel_from_sensor_combined(dataset) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ts_us = _timestamp_us(dataset)
+    ax = np.asarray(dataset.data["accelerometer_m_s2[0]"], dtype=float)
+    ay = np.asarray(dataset.data["accelerometer_m_s2[1]"], dtype=float)
+    az = np.asarray(dataset.data["accelerometer_m_s2[2]"], dtype=float)
+    return ts_us, ax, ay, az
+
+
+def _load_accel(
+    ulog,
+    time_us: np.ndarray,
+    metadata: dict,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Interpolate accelerometer to gyro timeline (m/s²)."""
+    accel_fifo = _safe_dataset(ulog, "sensor_accel_fifo")
+    if accel_fifo is not None:
+        accel_ts, ax, ay, az = _unpack_sensor_fifo(accel_fifo)
+        if len(accel_ts) > 0:
+            metadata["has_accel_fifo"] = True
+            metadata["accel_source"] = "sensor_accel_fifo"
+            return (
+                _interp_to(time_us, accel_ts, ax),
+                _interp_to(time_us, accel_ts, ay),
+                _interp_to(time_us, accel_ts, az),
+            )
+
+    combined = _safe_dataset(ulog, "sensor_combined")
+    if combined is not None and "accelerometer_m_s2[0]" in combined.data:
+        accel_ts, ax, ay, az = _accel_from_sensor_combined(combined)
+        metadata["accel_source"] = "sensor_combined"
+        return (
+            _interp_to(time_us, accel_ts, ax),
+            _interp_to(time_us, accel_ts, ay),
+            _interp_to(time_us, accel_ts, az),
+        )
+
+    veh_accel = _safe_dataset(ulog, "vehicle_acceleration")
+    if veh_accel is not None:
+        accel_ts = _timestamp_us(veh_accel)
+        ax = np.asarray(veh_accel.data["xyz[0]"], dtype=float)
+        ay = np.asarray(veh_accel.data["xyz[1]"], dtype=float)
+        az = np.asarray(veh_accel.data["xyz[2]"], dtype=float)
+        metadata["accel_source"] = "vehicle_acceleration"
+        return (
+            _interp_to(time_us, accel_ts, ax),
+            _interp_to(time_us, accel_ts, ay),
+            _interp_to(time_us, accel_ts, az),
+        )
+
+    metadata["accel_source"] = None
+    return (
+        np.zeros_like(time_us, dtype=float),
+        np.zeros_like(time_us, dtype=float),
+        np.zeros_like(time_us, dtype=float),
+    )
+
+
+def _load_velocity(
+    ulog,
+    time_us: np.ndarray,
+    metadata: dict,
+) -> tuple[
+    np.ndarray, np.ndarray, np.ndarray,
+    np.ndarray, np.ndarray, np.ndarray,
+]:
+    """Interpolate local velocity estimate + setpoint to gyro timeline (m/s, NED)."""
+    pos = _safe_dataset(ulog, "vehicle_local_position")
+    if pos is not None:
+        pos_us = _timestamp_us(pos)
+        vx = _interp_to(time_us, pos_us, np.asarray(pos.data["vx"], dtype=float))
+        vy = _interp_to(time_us, pos_us, np.asarray(pos.data["vy"], dtype=float))
+        vz = _interp_to(time_us, pos_us, np.asarray(pos.data["vz"], dtype=float))
+        metadata["velocity_source"] = "vehicle_local_position"
+    else:
+        vx = vy = vz = np.zeros_like(time_us, dtype=float)
+        metadata["velocity_source"] = None
+
+    pos_sp = _safe_dataset(ulog, "vehicle_local_position_setpoint")
+    if pos_sp is not None:
+        sp_us = _timestamp_us(pos_sp)
+        vx_sp = _interp_to(time_us, sp_us, np.asarray(pos_sp.data["vx"], dtype=float))
+        vy_sp = _interp_to(time_us, sp_us, np.asarray(pos_sp.data["vy"], dtype=float))
+        vz_sp = _interp_to(time_us, sp_us, np.asarray(pos_sp.data["vz"], dtype=float))
+        metadata["velocity_setpoint_source"] = "vehicle_local_position_setpoint"
+    else:
+        traj_sp = _safe_dataset(ulog, "trajectory_setpoint")
+        if traj_sp is not None:
+            sp_us = _timestamp_us(traj_sp)
+            vx_sp = _interp_to(time_us, sp_us, np.asarray(traj_sp.data["velocity[0]"], dtype=float))
+            vy_sp = _interp_to(time_us, sp_us, np.asarray(traj_sp.data["velocity[1]"], dtype=float))
+            vz_sp = _interp_to(time_us, sp_us, np.asarray(traj_sp.data["velocity[2]"], dtype=float))
+            metadata["velocity_setpoint_source"] = "trajectory_setpoint"
+        else:
+            vx_sp = vy_sp = vz_sp = np.zeros_like(time_us, dtype=float)
+            metadata["velocity_setpoint_source"] = None
+
+    return vx, vy, vz, vx_sp, vy_sp, vz_sp
+
+
 def _build_setup_info(ulog, path: Path) -> list[tuple[str, str]]:
     setup: list[tuple[str, str]] = [
         ("Firmware revision", "PX4"),
@@ -98,7 +197,15 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
     except Exception:
         logger.debug("PX4ULog attitude enrichment skipped for %s", path.name)
 
-    metadata: dict = {"gyro_source": "sensor_combined", "has_gyro_fifo": False, "has_accel_fifo": False}
+    metadata: dict = {
+        "gyro_source": "sensor_combined",
+        "has_gyro_fifo": False,
+        "has_accel_fifo": False,
+        "accel_unit": "m/s²",
+        "velocity_unit": "m/s",
+        "velocity_frame": "NED local",
+        "attitude_unit": "deg",
+    }
 
     gyro_fifo = _safe_dataset(ulog, "sensor_gyro_fifo")
     if gyro_fifo is not None:
@@ -127,15 +234,8 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
             time_us, gx, gy, gz = _gyro_from_sensor_combined(combined)
             metadata["gyro_source"] = "sensor_combined"
 
-    accel_fifo = _safe_dataset(ulog, "sensor_accel_fifo")
-    if accel_fifo is not None:
-        accel_ts, ax, ay, az = _unpack_sensor_fifo(accel_fifo)
-        if len(accel_ts) > 0:
-            metadata["has_accel_fifo"] = True
-            metadata["accel_time_us"] = accel_ts
-            metadata["accel_x"] = ax
-            metadata["accel_y"] = ay
-            metadata["accel_z"] = az
+    ax, ay, az = _load_accel(ulog, time_us, metadata)
+    vx, vy, vz, vx_sp, vy_sp, vz_sp = _load_velocity(ulog, time_us, metadata)
 
     rates_sp = _safe_dataset(ulog, "vehicle_rates_setpoint")
     if rates_sp is not None:
@@ -167,6 +267,15 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
         "setpoint_1_": _interp_to(time_us, sp_us, sp1),
         "setpoint_2_": _interp_to(time_us, sp_us, sp2),
         "setpoint_3_": _interp_to(time_us, thr_us, thr),
+        "accel_0_": ax,
+        "accel_1_": ay,
+        "accel_2_": az,
+        "vel_0_": vx,
+        "vel_1_": vy,
+        "vel_2_": vz,
+        "vel_sp_0_": vx_sp,
+        "vel_sp_1_": vy_sp,
+        "vel_sp_2_": vz_sp,
     }
 
     if att_sp is not None:

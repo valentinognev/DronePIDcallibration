@@ -38,17 +38,38 @@ TRACE_DEFS: dict[str, dict[str, Any]] = {
     "motor_2": {"col": "eRPM_2_", "alt_cols": ["motor_2_"], "label": "Motor 3 (RPM)", "color": "#0099ff"},
     "motor_3": {"col": "eRPM_3_", "alt_cols": ["motor_3_"], "label": "Motor 4 (RPM)", "color": "#00cccc"},
     "debug": {"col": "debug_{axis}_", "label": "Debug", "color": "#ff0000"},
+    "accel": {"col": "accel_{axis}_", "label": "Accel", "color": "#cccc00"},
+    "attitude": {
+        "axis_cols": ["att_roll_", "att_pitch_", "att_yaw_"],
+        "label": "Attitude",
+        "color": "#66ccff",
+    },
+    "attitude_sp": {
+        "axis_cols": ["att_sp_roll_", "att_sp_pitch_", "att_sp_yaw_"],
+        "label": "Att setpoint",
+        "color": "#ff6666",
+    },
+    "velocity": {"col": "vel_{axis}_", "label": "Velocity", "color": "#00cccc"},
+    "velocity_sp": {"col": "vel_sp_{axis}_", "label": "Vel setpoint", "color": "#cc6600"},
 }
 
 
 def _is_per_axis(defn: dict[str, Any]) -> bool:
-    return "{axis}" in defn["col"]
+    return "{axis}" in defn.get("col", "")
+
+
+def _uses_axis_cols(defn: dict[str, Any]) -> bool:
+    return "axis_cols" in defn
 
 
 def _col_name(trace_key: str, axis_idx: int | None) -> str | None:
     defn = TRACE_DEFS.get(trace_key)
     if not defn:
         return None
+    if _uses_axis_cols(defn):
+        if axis_idx is None:
+            return None
+        return defn["axis_cols"][axis_idx]
     if not _is_per_axis(defn):
         return defn["col"]
     if axis_idx is None:
@@ -60,6 +81,11 @@ def _resolve_col(df: pd.DataFrame, trace_key: str, axis_idx: int | None) -> str 
     defn = TRACE_DEFS.get(trace_key)
     if not defn:
         return None
+    if _uses_axis_cols(defn):
+        if axis_idx is None:
+            return None
+        col = defn["axis_cols"][axis_idx]
+        return col if col in df.columns else None
     if not _is_per_axis(defn):
         candidates = [defn["col"]] + defn.get("alt_cols", [])
         for c in candidates:
@@ -239,7 +265,10 @@ def extract_log_viewer_traces(
 def list_available_traces(df: pd.DataFrame) -> list[str]:
     available = []
     for key, defn in TRACE_DEFS.items():
-        if not _is_per_axis(defn):
+        if _uses_axis_cols(defn):
+            if any(col in df.columns for col in defn["axis_cols"]) and key not in available:
+                available.append(key)
+        elif not _is_per_axis(defn):
             candidates = [defn["col"]] + defn.get("alt_cols", [])
             if any(c in df.columns for c in candidates):
                 available.append(key)

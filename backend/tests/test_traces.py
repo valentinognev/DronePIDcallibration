@@ -103,3 +103,48 @@ def test_empty_epoch_slice_returns_empty_panels():
     assert data["panels"] == {"roll": [], "pitch": []}
     assert data["motor_panel"] == []
     assert data["metadata"]["name"] == "test.csv"
+
+
+def test_px4_like_traces_available_and_extracted():
+    n = 200
+    df = pd.DataFrame(
+        {
+            "time_us": np.arange(n) * 250,
+            "accel_0_": np.linspace(0, 5, n),
+            "accel_1_": np.linspace(0, 4, n),
+            "accel_2_": np.linspace(9.8, 10.2, n),
+            "att_roll_": np.linspace(-5, 5, n),
+            "att_pitch_": np.linspace(-3, 3, n),
+            "att_yaw_": np.linspace(0, 180, n),
+            "att_sp_roll_": np.zeros(n),
+            "att_sp_pitch_": np.zeros(n),
+            "att_sp_yaw_": np.zeros(n),
+            "vel_0_": np.linspace(-1, 1, n),
+            "vel_1_": np.linspace(-2, 2, n),
+            "vel_2_": np.linspace(-0.5, 0.5, n),
+            "vel_sp_0_": np.zeros(n),
+            "vel_sp_1_": np.zeros(n),
+            "vel_sp_2_": np.zeros(n),
+        }
+    )
+    from pidbox.core.traces import list_available_traces
+
+    available = list_available_traces(df)
+    for key in ("accel", "attitude", "attitude_sp", "velocity", "velocity_sp"):
+        assert key in available
+
+    log = _mock_log(df)
+    data = extract_log_viewer_traces(
+        log,
+        0.0,
+        10.0,
+        [0, 1, 2],
+        ["accel", "attitude", "attitude_sp", "velocity", "velocity_sp"],
+        smooth_factor=1,
+        downsample=False,
+    )
+    assert len(data["panels"]["roll"]) == 5
+    assert data["panels"]["roll"][0]["key"] == "accel"
+    assert data["panels"]["roll"][1]["key"] == "attitude"
+    assert get_trace(df, "attitude", 0) is not None
+    assert get_trace(df, "velocity_sp", 2) is not None

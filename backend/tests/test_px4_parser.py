@@ -54,10 +54,30 @@ def test_load_primary_ulg_with_fifo():
         "setpoint_0_",
         "setpoint_1_",
         "setpoint_2_",
+        "accel_0_",
+        "accel_1_",
+        "accel_2_",
+        "vel_0_",
+        "vel_1_",
+        "vel_2_",
+        "vel_sp_0_",
+        "vel_sp_1_",
+        "vel_sp_2_",
+        "att_roll_",
+        "att_pitch_",
+        "att_yaw_",
+        "att_sp_roll_",
+        "att_sp_pitch_",
+        "att_sp_yaw_",
     ):
         assert col in df.columns
         assert len(df[col]) > 1000
 
+    assert log.metadata.get("accel_source") == "sensor_combined"
+    assert log.metadata.get("accel_unit") == "m/s²"
+    assert log.metadata.get("velocity_source") == "vehicle_local_position"
+    assert log.metadata.get("velocity_setpoint_source") == "vehicle_local_position_setpoint"
+    assert log.metadata.get("velocity_frame") == "NED local"
     assert len(log.setup_info) > 2
 
 

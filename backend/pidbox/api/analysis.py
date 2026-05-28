@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 from fastapi import APIRouter, HTTPException
 
 from pidbox.api.schemas import (
@@ -25,6 +26,13 @@ from pidbox.core.traces import AXIS_NAMES, get_trace
 from pidbox.session import session_manager
 
 router = APIRouter()
+
+STEP_SIGNAL_PAIRS: dict[str, tuple[str | None, str]] = {
+    "rate": ("setpoint", "gyro"),
+    "attitude": ("attitude_sp", "attitude"),
+    "velocity": ("velocity_sp", "velocity"),
+    "accel": (None, "accel"),
+}
 
 
 def _get_epoched_log(session_id: str, file_idx: int, log_idx: int, epoch_start, epoch_end):
@@ -64,6 +72,39 @@ def _trace_or_empty(df, trace_key: str, axis: int = 0):
     return y if y is not None else []
 
 
+def _step_axis_result(
+    df,
+    log,
+    axis: int,
+    signal: str,
+    smooth_factor: int,
+    y_correction: bool,
+) -> dict:
+    sp_key, meas_key = STEP_SIGNAL_PAIRS[signal]
+    meas = get_trace(df, meas_key, axis)
+    if meas is None:
+        return {"curves": [], "stats": step_stats([], [])}
+
+    if sp_key is None:
+        sp = np.zeros(len(meas), dtype=float)
+    else:
+        sp = get_trace(df, sp_key, axis)
+        if sp is None:
+            return {"curves": [], "stats": step_stats([], [])}
+
+    responses, time_ms = step_calc(sp, meas, log.lograte_khz, y_correction, smooth_factor)
+    mean_curve = responses.mean(axis=0).tolist() if len(responses) else []
+    result = {
+        "time_ms": time_ms.tolist(),
+        "curves": responses.tolist(),
+        "mean_curve": mean_curve,
+        "stats": step_stats(responses, time_ms),
+    }
+    if signal == "rate":
+        result["pidf"] = [log.roll_pidf, log.pitch_pidf, log.yaw_pidf][axis]
+    return result
+
+
 @router.post("/spectrum")
 def run_spectrum(req: SpectrumRequest):
     try:
@@ -93,31 +134,33 @@ def run_spectrum(req: SpectrumRequest):
 
 @router.post("/step-response")
 def run_step_response(req: StepResponseRequest):
+    unknown = [s for s in req.signals if s not in STEP_SIGNAL_PAIRS]
+    if unknown:
+        raise HTTPException(400, f"Unknown step-response signals: {unknown}")
+
     try:
         results = []
         for file_idx in req.file_indices:
             log, df, _, _ = _get_epoched_log(
                 req.session_id, file_idx, req.log_idx, req.epoch_start, req.epoch_end
             )
-            axis_data = {}
-            for axis in req.axes:
-                sp = get_trace(df, "setpoint", axis)
-                gy = get_trace(df, "gyro", axis)
-                if sp is None or gy is None:
-                    axis_data[AXIS_NAMES[axis]] = {"curves": [], "stats": step_stats([], [])}
-                    continue
-                responses, time_ms = step_calc(
-                    sp, gy, log.lograte_khz, req.y_correction, req.smooth_factor
-                )
-                mean_curve = responses.mean(axis=0).tolist() if len(responses) else []
-                axis_data[AXIS_NAMES[axis]] = {
-                    "time_ms": time_ms.tolist(),
-                    "curves": responses.tolist(),
-                    "mean_curve": mean_curve,
-                    "stats": step_stats(responses, time_ms),
-                    "pidf": [log.roll_pidf, log.pitch_pidf, log.yaw_pidf][axis],
-                }
-            results.append({"file_idx": file_idx, "name": log.name, "axes": axis_data})
+            signals_data: dict[str, dict] = {}
+            for signal in req.signals:
+                axis_data = {}
+                for axis in req.axes:
+                    axis_data[AXIS_NAMES[axis]] = _step_axis_result(
+                        df, log, axis, signal, req.smooth_factor, req.y_correction
+                    )
+                signals_data[signal] = axis_data
+
+            file_result: dict = {"file_idx": file_idx, "name": log.name}
+            if req.signals == ["rate"]:
+                file_result["axes"] = signals_data["rate"]
+            else:
+                file_result["signals"] = signals_data
+                if "rate" in req.signals:
+                    file_result["axes"] = signals_data["rate"]
+            results.append(file_result)
     except KeyError:
         raise HTTPException(404, "Session not found")
     return {"results": results}

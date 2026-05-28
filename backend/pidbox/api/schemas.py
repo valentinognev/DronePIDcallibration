@@ -57,6 +57,7 @@ class StepResponseRequest(BaseModel):
     file_indices: list[int] = Field(default=[0])
     log_idx: int = 0
     axes: list[int] = Field(default=[0, 1, 2])
+    signals: list[str] = Field(default=["rate"])
     smooth_factor: int = 1
     y_correction: bool = True
     epoch_start: float | None = None

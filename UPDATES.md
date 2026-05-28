@@ -5,6 +5,23 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.10 — 2026-05-28
+
+### Added
+
+- **PX4 ULG accel/attitude/velocity traces (ISSUE-006)**: Log Viewer and Step Response support for PX4 channels beyond gyro rate.
+  - **Parser (`px4.py`)**: interpolates accelerometer to gyro timeline from `sensor_accel_fifo`, `sensor_combined`, or `vehicle_acceleration` into `accel_0_/1_/2_` (m/s²). Loads `vehicle_local_position` vx/vy/vz and setpoints from `vehicle_local_position_setpoint` or `trajectory_setpoint` into `vel_*` / `vel_sp_*` (NED, m/s). Units and frame documented in log metadata.
+  - **Traces (`traces.py`)**: new trace keys `accel`, `attitude`, `attitude_sp`, `velocity`, `velocity_sp`; exposed via `list_available_traces()` when columns exist.
+  - **Step Response API**: `StepResponseRequest.signals` list (`rate`, `attitude`, `velocity`, `accel`; default `["rate"]`). Multi-signal responses use `signals.{mode}.{axis}`; default rate-only keeps backward-compatible `axes` shape. Accel mode uses zero setpoint (empty curves when no steps detected).
+- **`backend/tests/test_step_response_api.py`**: attitude signal and backward-compat coverage.
+- Extended **`test_px4_parser.py`** and **`test_traces.py`** for new columns and trace keys.
+
+### Changed
+
+- API version `0.1.10`.
+
+---
+
 ## 0.1.9 — 2026-05-28
 
 ### Fixed
