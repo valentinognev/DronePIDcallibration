@@ -36,6 +36,40 @@ export interface TraceData {
   metadata: Record<string, unknown>;
 }
 
+export interface StepAxisStats {
+  n: number;
+  peak_mean?: number;
+  peak_std?: number;
+  latency_mean_ms?: number;
+}
+
+export interface StepAxisResult {
+  time_ms: number[];
+  curves: number[][];
+  mean_curve: number[];
+  stats: StepAxisStats;
+  pidf?: string;
+}
+
+export interface StepResponseResult {
+  file_idx: number;
+  name: string;
+  axes?: Record<'roll' | 'pitch' | 'yaw', StepAxisResult>;
+  signals?: Record<string, Record<'roll' | 'pitch' | 'yaw', StepAxisResult>>;
+}
+
+export interface StepResponseRequest {
+  session_id: string;
+  file_indices: number[];
+  log_idx?: number;
+  axes?: number[];
+  smooth_factor?: number;
+  y_correction?: boolean;
+  signals?: string[];
+  epoch_start?: number[];
+  epoch_end?: number[];
+}
+
 export const api = {
   health: () => request<{ status: string }>('/health'),
 
@@ -94,8 +128,8 @@ export const api = {
   runSpectrum: (body: Record<string, unknown>) =>
     request<{ results: Array<Record<string, unknown>> }>('/analysis/spectrum', { method: 'POST', body: JSON.stringify(body) }),
 
-  runStepResponse: (body: Record<string, unknown>) =>
-    request<{ results: Array<Record<string, unknown>> }>('/analysis/step-response', { method: 'POST', body: JSON.stringify(body) }),
+  runStepResponse: (body: StepResponseRequest) =>
+    request<{ results: StepResponseResult[] }>('/analysis/step-response', { method: 'POST', body: JSON.stringify(body) }),
 
   runThrottleSpectrum: (body: Record<string, unknown>) =>
     request<Record<string, unknown>>('/analysis/throttle-spectrum', { method: 'POST', body: JSON.stringify(body) }),

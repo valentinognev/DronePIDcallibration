@@ -1,20 +1,48 @@
 import { useState } from 'react';
 import Plot from '../components/Plot';
-import { api } from '../lib/api';
-import { FILE_OVERLAY_COLORS } from '../lib/constants';
+import { api, type StepAxisResult, type StepAxisStats, type StepResponseResult } from '../lib/api';
+import { AXIS_LABELS, FILE_OVERLAY_COLORS, STEP_SIGNAL_MODES, type StepSignalMode } from '../lib/constants';
 import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
+
+const AXES = ['roll', 'pitch', 'yaw'] as const;
+
+function getAxisResult(
+  file: StepResponseResult,
+  signal: StepSignalMode,
+  axis: (typeof AXES)[number],
+): StepAxisResult | undefined {
+  if (signal === 'rate' && file.axes) {
+    return file.axes[axis];
+  }
+  return file.signals?.[signal]?.[axis];
+}
+
+function signalLabel(signal: StepSignalMode): string {
+  return STEP_SIGNAL_MODES.find((m) => m.key === signal)?.label ?? signal;
+}
 
 export function StepResponsePage() {
   const plotLayoutBase = usePlotLayoutBase();
   const { sessionId, files } = useSessionStore();
-  const [results, setResults] = useState<Array<Record<string, unknown>>>([]);
+  const [results, setResults] = useState<StepResponseResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<number[]>([0]);
   const [smoothFactor, setSmoothFactor] = useState(1);
+  const [selectedSignals, setSelectedSignals] = useState<StepSignalMode[]>(['rate']);
+
+  const toggleSignal = (signal: StepSignalMode) => {
+    setSelectedSignals((prev) => {
+      if (prev.includes(signal)) {
+        const next = prev.filter((s) => s !== signal);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, signal];
+    });
+  };
 
   const run = async () => {
-    if (!sessionId) return;
+    if (!sessionId || selectedSignals.length === 0) return;
     setLoading(true);
     try {
       const data = await api.runStepResponse({
@@ -22,6 +50,7 @@ export function StepResponsePage() {
         file_indices: selectedFiles.slice(0, 10),
         smooth_factor: smoothFactor,
         y_correction: true,
+        signals: selectedSignals,
       });
       setResults(data.results);
     } finally {
@@ -29,14 +58,19 @@ export function StepResponsePage() {
     }
   };
 
+  const panels = selectedSignals.flatMap((signal) =>
+    AXES.map((axis) => ({ signal, axis })),
+  );
+
   return (
     <div className="flex gap-4 h-[calc(100vh-80px)]">
-      <div className="flex-1 grid grid-rows-3 gap-2">
-        {['roll', 'pitch', 'yaw'].map((axis) => {
+      <div className="flex-1 grid gap-2 overflow-y-auto" style={{ gridTemplateRows: `repeat(${panels.length}, minmax(250px, auto))` }}>
+        {panels.map(({ signal, axis }) => {
+          const axisIdx = AXES.indexOf(axis);
+          const axisName = AXIS_LABELS[axisIdx];
           const traces: Plotly.Data[] = [];
           results.forEach((file, fi) => {
-            const axes = file.axes as Record<string, { time_ms: number[]; curves: number[][]; mean_curve: number[]; stats: Record<string, number>; pidf: string }>;
-            const ax = axes?.[axis];
+            const ax = getAxisResult(file, signal, axis);
             if (!ax?.time_ms) return;
             if (ax.mean_curve?.length) {
               traces.push({
@@ -52,11 +86,11 @@ export function StepResponsePage() {
 
           const fileStats = results
             .map((file, fi) => {
-              const ax = (file.axes as Record<string, { stats: Record<string, number>; pidf: string }>)?.[axis];
+              const ax = getAxisResult(file, signal, axis);
               if (!ax?.stats) return null;
               return { name: String(file.name), fi, stats: ax.stats, pidf: ax.pidf };
             })
-            .filter(Boolean) as Array<{ name: string; fi: number; stats: Record<string, number>; pidf: string }>;
+            .filter(Boolean) as Array<{ name: string; fi: number; stats: StepAxisStats; pidf?: string }>;
 
           const barNames = fileStats.map((f) => f.name.slice(0, 12));
           const peakBars: Plotly.Data = {
@@ -75,12 +109,12 @@ export function StepResponsePage() {
           };
 
           return (
-            <div key={axis} className="flex gap-2 min-h-0">
+            <div key={`${signal}-${axis}`} className="flex gap-2 min-h-0">
               <Plot
                 data={traces}
                 layout={{
                   ...plotLayoutBase,
-                  title: `${axis.charAt(0).toUpperCase() + axis.slice(1)} Step Response`,
+                  title: `${axisName} — ${signalLabel(signal)} Step Response`,
                   height: 250,
                   xaxis: { ...plotLayoutBase.xaxis, title: 'Time (ms)' },
                   yaxis: { ...plotLayoutBase.yaxis, title: 'Response', range: [0, 1.5] },
@@ -94,7 +128,7 @@ export function StepResponsePage() {
                   data={[peakBars]}
                   layout={{
                     ...plotLayoutBase,
-                    title: `${axis} — Peak`,
+                    title: `${axisName} — Peak`,
                     height: 120,
                     margin: { l: 40, r: 10, t: 30, b: 30 },
                     yaxis: { ...plotLayoutBase.yaxis, title: 'Peak', range: [0, 1.5] },
@@ -108,7 +142,7 @@ export function StepResponsePage() {
                   data={[latencyBars]}
                   layout={{
                     ...plotLayoutBase,
-                    title: `${axis} — Latency`,
+                    title: `${axisName} — Latency`,
                     height: 120,
                     margin: { l: 40, r: 10, t: 30, b: 30 },
                     yaxis: { ...plotLayoutBase.yaxis, title: 'ms' },
@@ -119,11 +153,11 @@ export function StepResponsePage() {
                   useResizeHandler
                 />
                 <div className="panel text-xs overflow-auto flex-1 min-h-0">
-                  <h4 className="font-semibold mb-1">{axis} stats</h4>
+                  <h4 className="font-semibold mb-1">{axisName} stats</h4>
                   {fileStats.map(({ name, fi, stats, pidf }) => (
                     <div key={fi} className="mb-1" style={{ color: FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length] }}>
                       <p>{name}</p>
-                      <p>{pidf}</p>
+                      {pidf && <p>{pidf}</p>}
                       <p>Peak: {stats.peak_mean?.toFixed(3)} ± {stats.peak_std?.toFixed(3)}</p>
                       <p>Latency: {stats.latency_mean_ms?.toFixed(1)} ms · n={stats.n}</p>
                     </div>
@@ -137,6 +171,19 @@ export function StepResponsePage() {
 
       <div className="panel w-56 space-y-3 shrink-0">
         <h3 className="font-semibold text-sm">Step Resp Tool</h3>
+        <div>
+          <p className="text-xs text-[var(--text-secondary)] mb-1">Signal modes</p>
+          {STEP_SIGNAL_MODES.map(({ key, label }) => (
+            <label key={key} className="flex gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={selectedSignals.includes(key)}
+                onChange={() => toggleSignal(key)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
         {files.map((f, i) => (
           <label key={f.file_id} className="flex gap-2 text-sm">
             <input

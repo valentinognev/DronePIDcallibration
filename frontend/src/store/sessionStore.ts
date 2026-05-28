@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import type { FileInfo, TraceData } from '../lib/api';
-import { FALLBACK_FIRMWARES, type FirmwareOption } from '../lib/constants';
+import { FALLBACK_FIRMWARES, PX4_EXTRA_TRACES, type FirmwareOption } from '../lib/constants';
 
 export interface AppSettings {
   firmware: string;
@@ -41,9 +41,9 @@ interface SessionState {
   reset: () => void;
 }
 
-const DEFAULT_TRACES = [
-  'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
-  'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',
+const DEFAULT_VISIBLE_TRACES = [
+  'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'throttle',
+  'motor_0', 'motor_1', 'motor_2', 'motor_3',
 ];
 
 function fileListHasUlg(files: FileList): boolean {
@@ -71,7 +71,7 @@ export const useSessionStore = create<SessionState>()(
         yScale: 500,
         singlePanel: false,
       },
-      visibleTraces: ['gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3'],
+      visibleTraces: DEFAULT_VISIBLE_TRACES,
       firmwareOptions: FALLBACK_FIRMWARES,
 
       loadFirmwares: async () => {
@@ -206,7 +206,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       refreshTraces: async () => {
-        const { sessionId, selectedFileIdx, selectedLogIdx, visibleTraces, settings } = get();
+        const { sessionId, selectedFileIdx, selectedLogIdx, visibleTraces, settings, traceData } = get();
         if (!sessionId || get().files.length === 0) return;
 
         const axes: number[] = [];
@@ -214,16 +214,34 @@ export const useSessionStore = create<SessionState>()(
         if (settings.plotP) axes.push(1);
         if (settings.plotY) axes.push(2);
 
+        const prevAvailable = traceData?.available_traces;
+        let tracesToRequest = prevAvailable
+          ? visibleTraces.filter((t) => prevAvailable.includes(t))
+          : [...new Set([
+              ...visibleTraces,
+              ...(settings.firmware === 'px4' ? PX4_EXTRA_TRACES : []),
+            ])];
+
         set({ loading: true });
         try {
           const data = await api.getTraces(sessionId, {
             file_idx: selectedFileIdx,
             log_idx: selectedLogIdx,
             axes,
-            traces: visibleTraces.filter((t) => DEFAULT_TRACES.includes(t)),
+            traces: tracesToRequest,
             smooth_factor: settings.lineSmooth,
           });
-          set({ traceData: data, error: null });
+
+          const px4Available = data.available_traces.filter((t) =>
+            (PX4_EXTRA_TRACES as readonly string[]).includes(t),
+          );
+          const toEnable = px4Available.filter((t) => !visibleTraces.includes(t));
+
+          if (toEnable.length > 0) {
+            set({ traceData: data, visibleTraces: [...visibleTraces, ...toEnable], error: null });
+          } else {
+            set({ traceData: data, error: null });
+          }
         } catch (e) {
           set({ error: String(e) });
         } finally {

@@ -4,6 +4,7 @@ import { FileDropzone } from '../components/FileDropzone';
 import { TimeSeriesPlot } from '../components/TimeSeriesPlot';
 import { TraceTogglePanel } from '../components/TraceTogglePanel';
 import { api } from '../lib/api';
+import { DEFAULT_TRACES } from '../lib/constants';
 import { useSessionStore } from '../store/sessionStore';
 
 export function LogViewerPage() {
@@ -24,10 +25,7 @@ export function LogViewerPage() {
     if (files.length > 0) refreshTraces();
   }, [settings.plotR, settings.plotP, settings.plotY, settings.lineSmooth, visibleTraces]);
 
-  const available = traceData?.available_traces || [
-    'gyro', 'setpoint', 'pterm', 'iterm', 'dterm', 'dterm_pf', 'fterm',
-    'pidsum', 'piderr', 'throttle', 'motor_0', 'motor_1', 'motor_2', 'motor_3',
-  ];
+  const available = traceData?.available_traces || [...DEFAULT_TRACES];
 
   const motorPanelTraces =
     traceData?.motor_panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
