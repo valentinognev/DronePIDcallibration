@@ -9,14 +9,10 @@ import { useSessionStore } from '../store/sessionStore';
 export function LogViewerPage() {
   const {
     sessionId, files, traceData, loading, error, settings, visibleTraces,
-    uploadFiles, refreshTraces, setSettings, setFirmware, loadFirmwares, toggleTrace,
+    uploadFiles, refreshTraces, setSettings, setFirmware, toggleTrace,
     selectedFileIdx, setSelectedFile, setEpoch, reset, initSession,
     firmwareOptions,
   } = useSessionStore();
-
-  useEffect(() => {
-    loadFirmwares();
-  }, [loadFirmwares]);
 
   useEffect(() => {
     if (!sessionId) {
