@@ -10,6 +10,17 @@ Newest entry always at the top. Every agent must append an entry here when makin
 ### Added
 
 - **Spectral Analyzer (ISSUE-001)**: Trace parameter labels in the Params panel are colorized with `getTraceColor()` to match spectrum plot curves, consistent with Log Viewer `TraceTogglePanel`. Shared `TRACE_LABELS` moved to `constants.ts`.
+- **PX4 ULOG parser (ISSUE-002)**: new `px4` firmware key accepts `.ulg` files via `pyulog`.
+  - Prefers high-rate `sensor_gyro_fifo` / `sensor_accel_fifo` when present; falls back to `sensor_combined` or `vehicle_angular_velocity`.
+  - Maps `vehicle_rates_setpoint`, attitude topics, and `vehicle_thrust_setpoint` into standard `gyroADC_*` / `setpoint_*` columns (rad→deg/s).
+  - Extracts up to 200 ULOG parameters into setup info.
+- **`backend/tests/test_px4_parser.py`**: registration, FIFO vs combined rate, no-FIFO fallback, and mock tests.
+
+### Changed
+
+- **`pyproject.toml`**: added `pyulog>=1.0.0` dependency.
+- **`compute_derived_columns`**: PX4 skips Betaflight-specific debug/motor zero-fill (same as ArduPilot).
+- API version `0.1.7`.
 
 ---
 

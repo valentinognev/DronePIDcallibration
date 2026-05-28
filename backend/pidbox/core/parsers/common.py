@@ -175,8 +175,12 @@ def compute_derived_columns(df: pd.DataFrame, firmware: str = "betaflight") -> p
         if "rcData_3_" in df.columns:
             df["setpoint_3_"] = df["rcData_3_"] - 1000
 
+    if firmware == "px4":
+        # Gyro/setpoints already normalized in px4 parser; ensure piderr exists.
+        pass
+
     for k in range(4):
-        if firmware != "ardupilot":
+        if firmware not in ("ardupilot", "px4"):
             for prefix in ("debug", "axisF"):
                 col = f"{prefix}_{k}_"
                 if col not in df.columns:

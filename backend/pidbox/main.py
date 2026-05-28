@@ -19,7 +19,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="PIDToolBox API",
-    version="0.1.6",
+    version="0.1.7",
     description="Python backend for multirotor PID tuning log analysis",
     lifespan=lifespan,
 )
