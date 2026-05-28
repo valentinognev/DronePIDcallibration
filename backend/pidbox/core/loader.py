@@ -8,6 +8,7 @@ from pathlib import Path
 from pidbox.core.parsers import ardupilot  # noqa: F401
 from pidbox.core.parsers import betaflight  # noqa: F401
 from pidbox.core.parsers import inav  # noqa: F401
+from pidbox.core.parsers import px4  # noqa: F401
 from pidbox.core.parsers import quicksilver  # noqa: F401
 from pidbox.core.parsers.base import LoadedLog, get_parser
 
