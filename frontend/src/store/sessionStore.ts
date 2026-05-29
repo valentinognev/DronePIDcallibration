@@ -49,6 +49,21 @@ function fileListHasUlg(files: FileList): boolean {
   return Array.from(files).some((f) => f.name.toLowerCase().endsWith('.ulg'));
 }
 
+/** Drop trace series that are not currently visible (avoids stale overlays after toggles). */
+function pruneTraceData(data: TraceData, visible: string[]): TraceData {
+  const visibleSet = new Set(visible);
+  const keep = <T extends { key: string }>(list: T[]) => list.filter((t) => visibleSet.has(t.key));
+  return {
+    ...data,
+    panels: Object.fromEntries(
+      Object.entries(data.panels).map(([panel, series]) => [panel, keep(series)]),
+    ) as TraceData['panels'],
+    motor_panel: keep(data.motor_panel ?? []),
+  };
+}
+
+let traceRefreshId = 0;
+
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
@@ -207,6 +222,8 @@ export const useSessionStore = create<SessionState>()(
         const { sessionId, selectedFileIdx, selectedLogIdx, visibleTraces, settings, traceData } = get();
         if (!sessionId || get().files.length === 0) return;
 
+        const requestId = ++traceRefreshId;
+
         const axes: number[] = [];
         if (settings.plotR) axes.push(0);
         if (settings.plotP) axes.push(1);
@@ -230,6 +247,8 @@ export const useSessionStore = create<SessionState>()(
             smooth_factor: settings.lineSmooth,
           });
 
+          if (requestId !== traceRefreshId) return;
+
           const isPx4Trace = (t: string) =>
             (PX4_EXTRA_TRACES as readonly string[]).includes(t);
           const px4Available = data.available_traces.filter(isPx4Trace);
@@ -240,16 +259,22 @@ export const useSessionStore = create<SessionState>()(
             (t) => !prevPx4Available.includes(t),
           );
           const toEnable = newlyAvailablePx4.filter((t) => !visibleTraces.includes(t));
+          const nextVisible =
+            toEnable.length > 0 ? [...visibleTraces, ...toEnable] : visibleTraces;
 
-          if (toEnable.length > 0) {
-            set({ traceData: data, visibleTraces: [...visibleTraces, ...toEnable], error: null });
-          } else {
-            set({ traceData: data, error: null });
-          }
+          set({
+            traceData: pruneTraceData(data, nextVisible),
+            visibleTraces: nextVisible,
+            error: null,
+          });
         } catch (e) {
-          set({ error: String(e) });
+          if (requestId === traceRefreshId) {
+            set({ error: String(e) });
+          }
         } finally {
-          set({ loading: false });
+          if (requestId === traceRefreshId) {
+            set({ loading: false });
+          }
         }
       },
 

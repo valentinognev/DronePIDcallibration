@@ -13,15 +13,18 @@ def step_calc(
     lograte_khz: float,
     y_correction: bool = True,
     smooth_factor: int = 1,
+    min_input: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Deconvolve step response using Wiener deconvolution.
     Returns (stepresponse stack n x wnd, time_ms).
     """
-    sp = np.asarray(sp, dtype=float).ravel()
     gy = smooth_by_factor(np.asarray(gy, dtype=float).ravel(), smooth_factor)
 
-    min_input = 20
+    sp = np.asarray(sp, dtype=float).ravel()
+    if min_input is None:
+        peak = float(np.max(np.abs(sp))) if sp.size else 0.0
+        min_input = float(np.clip(peak * 0.15, 0.25, 20.0)) if peak > 0 else 20.0
     lograte = lograte_khz
     segment_length = int(lograte * 2000)
     wnd = int(lograte * 1000 * 0.5)
@@ -80,7 +83,9 @@ def step_calc(
 
         if np.any(steady_window):
             steady = resp[steady_window]
-            if np.min(steady) > 0.5 and np.max(steady) < 3:
+            # Rate setpoints use legacy 0.5–3 gate; lower-scale signals use wider bounds.
+            qc_lo, qc_hi = (0.05, 5.0) if min_input < 20 else (0.5, 3.0)
+            if np.min(steady) > qc_lo and np.max(steady) < qc_hi:
                 out_len = min(wnd + 1, len(resp))
                 responses.append(resp[:out_len])
 

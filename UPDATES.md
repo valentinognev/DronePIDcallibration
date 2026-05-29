@@ -5,6 +5,26 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.19 — 2026-05-29
+
+### Added
+
+- **Step Response multi-signal overlay**: one plot per axis (Roll/Pitch/Yaw) overlays all selected signal modes (Rate, Attitude, Velocity, Accel) on a single file or multiple files. Line dash/width per mode (`STEP_SIGNAL_LINE_STYLES`); bar hatch patterns per mode (`STEP_SIGNAL_BAR_PATTERNS`, `stepSignalBarMarker()`).
+- **Step Response layout**: 75% / 25% grid for step curve vs peak/latency/stats; HTML headings on right-column charts; Y numeric ticks kept, X file labels hidden (colors/legend on main plot).
+- **Log Viewer trace toggle reliability**: Plotly remount key on visible trace set; stale `refreshTraces` responses ignored; `pruneTraceData()` drops hidden series from session state.
+
+### Fixed
+
+- **Step Response bar charts**: numeric X positions prevent stacked bars when truncated filenames collide; `barmode: 'group'`.
+- **Step Response file selection**: plots filter by checked files without requiring a new Run after unchecking.
+- **Velocity / Accel step response** (`analysis.py`, `stepresponse.py`): signal-specific `min_input` thresholds (rate 20, attitude 5°, velocity 0.5 m/s, accel 0.25 m/s); accel uses **velocity setpoint** as excitation (logs lack accel SP); relaxed QC gate (0.05–5) for non-rate signals. Test: `test_step_response_velocity_and_accel_signals`.
+
+### Changed
+
+- API / UI version `0.1.19`.
+
+---
+
 ## 0.1.18 — 2026-05-28
 
 ### Removed

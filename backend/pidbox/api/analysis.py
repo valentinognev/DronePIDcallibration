@@ -31,7 +31,16 @@ STEP_SIGNAL_PAIRS: dict[str, tuple[str | None, str]] = {
     "rate": ("setpoint", "gyro"),
     "attitude": ("attitude_sp", "attitude"),
     "velocity": ("velocity_sp", "velocity"),
-    "accel": (None, "accel"),
+    # Accel: excitation from velocity-setpoint steps (no direct accel SP in logs).
+    "accel": ("velocity_sp", "accel"),
+}
+
+# Minimum setpoint excursion per 2 s window; None = auto from signal scale in step_calc.
+STEP_SIGNAL_MIN_INPUT: dict[str, float | None] = {
+    "rate": 20.0,
+    "attitude": 5.0,
+    "velocity": 0.5,
+    "accel": 0.25,
 }
 
 
@@ -72,6 +81,15 @@ def _trace_or_empty(df, trace_key: str, axis: int = 0):
     return y if y is not None else []
 
 
+def _empty_step_result() -> dict:
+    return {
+        "time_ms": [],
+        "curves": [],
+        "mean_curve": [],
+        "stats": step_stats(np.zeros((0, 0)), np.array([])),
+    }
+
+
 def _step_axis_result(
     df,
     log,
@@ -83,16 +101,20 @@ def _step_axis_result(
     sp_key, meas_key = STEP_SIGNAL_PAIRS[signal]
     meas = get_trace(df, meas_key, axis)
     if meas is None:
-        return {"curves": [], "stats": step_stats([], [])}
+        return _empty_step_result()
 
     if sp_key is None:
         sp = np.zeros(len(meas), dtype=float)
     else:
         sp = get_trace(df, sp_key, axis)
         if sp is None:
-            return {"curves": [], "stats": step_stats([], [])}
+            return _empty_step_result()
 
-    responses, time_ms = step_calc(sp, meas, log.lograte_khz, y_correction, smooth_factor)
+    sp = np.asarray(sp, dtype=float)
+    min_input = STEP_SIGNAL_MIN_INPUT.get(signal)
+    responses, time_ms = step_calc(
+        sp, meas, log.lograte_khz, y_correction, smooth_factor, min_input=min_input
+    )
     mean_curve = responses.mean(axis=0).tolist() if len(responses) else []
     result = {
         "time_ms": time_ms.tolist(),

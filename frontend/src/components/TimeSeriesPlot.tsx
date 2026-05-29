@@ -61,6 +61,7 @@ export function TimeSeriesPlot({
         </button>
       )}
       <Plot
+        key={traces.map((t) => t.key).join('|') || 'empty'}
         data={traces.map((t) => ({
           x: t.x,
           y: t.y,

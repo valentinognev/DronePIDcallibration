@@ -166,6 +166,49 @@ export const STEP_SIGNAL_MODES = [
 
 export type StepSignalMode = (typeof STEP_SIGNAL_MODES)[number]['key'];
 
+/** Line style per step-response signal (overlay multiple modes on one axis plot). */
+export const STEP_SIGNAL_LINE_STYLES: Record<
+  StepSignalMode,
+  { dash: 'solid' | 'dash' | 'dashdot' | 'dot'; width: number }
+> = {
+  rate: { dash: 'solid', width: 2.5 },
+  attitude: { dash: 'dash', width: 2 },
+  velocity: { dash: 'dashdot', width: 2 },
+  accel: { dash: 'dot', width: 1.5 },
+};
+
+/** Bar hatch pattern per signal (empty = solid fill, matches line-style family). */
+export const STEP_SIGNAL_BAR_PATTERNS: Record<
+  StepSignalMode,
+  '' | '/' | 'x' | '|'
+> = {
+  rate: '',
+  attitude: '/',
+  velocity: 'x',
+  accel: '|',
+};
+
+export function stepSignalBarMarker(
+  rows: Array<{ signal: StepSignalMode; fi: number }>,
+  theme: AppTheme,
+): { color: string[]; pattern: Plotly.Pattern } {
+  const bg = theme === 'dark' ? '#1a1a1a' : '#f5f5f5';
+  const colors = rows.map(
+    (row) => FILE_OVERLAY_COLORS[row.fi % FILE_OVERLAY_COLORS.length],
+  );
+  const shapes = rows.map((row) => STEP_SIGNAL_BAR_PATTERNS[row.signal]);
+  return {
+    color: colors,
+    pattern: {
+      shape: shapes,
+      fgcolor: colors,
+      bgcolor: rows.map(() => bg),
+      size: 8,
+      solidity: shapes.map((shape) => (shape === '' ? 1 : 0.35)),
+    },
+  };
+}
+
 const PLOT_LAYOUT_DARK = {
   paper_bgcolor: '#1a1a1a',
   plot_bgcolor: '#1a1a1a',

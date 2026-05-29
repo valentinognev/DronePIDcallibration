@@ -29,6 +29,14 @@ def _inject_px4_log(session_id: str) -> None:
     att_sp[seg_len : seg_len + 500] = 25.0
     att[seg_len : seg_len + 500] = np.linspace(0, 25, 500)
 
+    vel_sp = np.zeros(n)
+    vel = np.zeros(n)
+    vel_sp[seg_len : seg_len + 500] = 3.0
+    vel[seg_len : seg_len + 500] = np.linspace(0, 3.0, 500)
+
+    accel = np.zeros(n)
+    accel[seg_len : seg_len + 500] = np.linspace(0, 2.0, 500)
+
     df = pd.DataFrame(
         {
             "time_us": time_us,
@@ -44,6 +52,15 @@ def _inject_px4_log(session_id: str) -> None:
             "att_sp_roll_": att_sp,
             "att_sp_pitch_": np.zeros(n),
             "att_sp_yaw_": np.zeros(n),
+            "vel_0_": vel,
+            "vel_1_": np.zeros(n),
+            "vel_2_": np.zeros(n),
+            "vel_sp_0_": vel_sp,
+            "vel_sp_1_": np.zeros(n),
+            "vel_sp_2_": np.zeros(n),
+            "accel_0_": accel,
+            "accel_1_": np.zeros(n),
+            "accel_2_": np.zeros(n),
         }
     )
     duration_sec = (time_us[-1] - time_us[0]) / 1_000_000
@@ -119,6 +136,31 @@ def test_step_response_attitude_signal():
     roll = result["signals"]["attitude"]["roll"]
     assert roll["stats"]["n"] >= 1
     assert "pidf" not in roll
+
+
+def test_step_response_velocity_and_accel_signals():
+    r = client.post("/api/sessions", json={"firmware": "px4"})
+    session_id = r.json()["session_id"]
+    _inject_px4_log(session_id)
+
+    r2 = client.post(
+        "/api/analysis/step-response",
+        json={
+            "session_id": session_id,
+            "file_indices": [0],
+            "log_idx": 0,
+            "axes": [0],
+            "signals": ["velocity", "accel"],
+        },
+    )
+    assert r2.status_code == 200
+    result = r2.json()["results"][0]
+    vel = result["signals"]["velocity"]["roll"]
+    acc = result["signals"]["accel"]["roll"]
+    assert vel["stats"]["n"] >= 1
+    assert len(vel["mean_curve"]) > 0
+    assert acc["stats"]["n"] >= 1
+    assert len(acc["mean_curve"]) > 0
 
 
 def test_step_response_unknown_signal():
