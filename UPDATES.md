@@ -5,6 +5,76 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.18 — 2026-05-28
+
+### Removed
+
+- **Log Viewer y scale field**: removed the unused **y scale** input from the Selection panel; X/Y/Z panels rely on trace autoscale only (`computeTraceYRange`). Removed `yScale` from `AppSettings` / persisted store.
+
+### Documentation
+
+- **README.md**: version `0.1.18`, Log Viewer behavior table, PX4 in firmware list, known-gaps note on epoch slider vs plot drag handles.
+- UI version `v0.1.18`.
+
+---
+
+## 0.1.17 — 2026-05-28
+
+### Changed
+
+- **Log Viewer control panel**: axis visibility toggles labeled **X, Y, Z** (was R, P, Y); still map to roll/pitch/yaw panels.
+- UI version `v0.1.17`.
+
+---
+
+## 0.1.16 — 2026-05-28
+
+### Changed
+
+- **Log Viewer plot titles (ISSUE-012)**: R/P/Y figure titles use signal-specific names per panel axis — rate: Roll/Pitch/Yaw rate (+ `SP` for setpoint); attitude: Roll/Pitch/Yaw (+ `SP`); accel: AccX/AccY/AccZ; velocity: Vx/Vy/Vz (+ `SP`). Y-axis labels show units only (no redundant axis prefix).
+- **`tracePanelTitle()`** in `constants.ts`.
+- API / UI version `0.1.16`.
+
+---
+
+## 0.1.15 — 2026-05-28
+
+### Changed
+
+- **Log Viewer dynamic plot titles (ISSUE-011)**: Roll, Pitch, Yaw, and motor/throttle figure titles and Y-axis labels update when channels are toggled (e.g. `Roll — Gyro, Attitude` with `Roll (deg/s, deg)`). Motor panels list visible motor/throttle traces and units.
+- **`buildPanelCaption()` / `buildMotorPanelCaption()`** in `frontend/src/lib/utils.ts`; **`TRACE_Y_UNITS`** in `constants.ts`.
+- API / UI version `0.1.15`.
+
+---
+
+## 0.1.14 — 2026-05-28
+
+### Changed
+
+- **Log Viewer Y autoscale (ISSUE-010)**: Roll, Pitch, and Yaw panels recompute Y-axis limits from visible traces whenever a channel is toggled on or off (5% padding). (Fixed `±y scale` fallback removed in `0.1.18`.)
+- **`computeTraceYRange()`** in `frontend/src/lib/utils.ts` with unit tests.
+- API / UI version `0.1.14`.
+
+---
+
+## 0.1.13 — 2026-05-28
+
+### Fixed
+
+- **Log Viewer Roll plot vertical zoom (ISSUE-009)**: Y-axis zoom/box-zoom works on the top (Roll) panel again after loading PX4 `.ulg` logs (and all other logs). Removed draggable epoch-trim shapes from the Roll plot; they captured pointer events over the full plot height. Analysis window is set only via the **Analysis window** slider above the plots (`EpochRangeSlider`).
+- API / UI version `0.1.13`.
+
+---
+
+## 0.1.12 — 2026-05-28
+
+### Fixed
+
+- **PX4 Log Viewer trace toggles (ISSUE-008)**: PX4 channels (`accel`, `attitude`, `attitude_sp`, `velocity`, `velocity_sp`) can be unchecked again after loading a `.ulg` file. `refreshTraces()` no longer re-enables every available PX4 trace on each fetch; it only auto-enables traces that were not present in the previous `available_traces` list (first discovery after upload).
+- API / UI version `0.1.12`.
+
+---
+
 ## 0.1.11 — 2026-05-28
 
 ### Fixed

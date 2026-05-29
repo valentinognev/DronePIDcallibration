@@ -1,11 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { EpochRangeSlider } from '../components/EpochRangeSlider';
 import { FileDropzone } from '../components/FileDropzone';
 import { TimeSeriesPlot } from '../components/TimeSeriesPlot';
 import { TraceTogglePanel } from '../components/TraceTogglePanel';
-import { api } from '../lib/api';
+import { api, type TraceData } from '../lib/api';
 import { DEFAULT_TRACES } from '../lib/constants';
+import { buildMotorPanelCaption, buildPanelCaption, computeTraceYRange } from '../lib/utils';
 import { useSessionStore } from '../store/sessionStore';
+
+type PanelTrace = TraceData['panels'][string][number];
+
+function visiblePanelTraces(
+  panel: TraceData['panels'][string] | undefined,
+  visibleTraces: string[],
+): PanelTrace[] {
+  return panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
+}
 
 export function LogViewerPage() {
   const {
@@ -27,6 +37,27 @@ export function LogViewerPage() {
 
   const available = traceData?.available_traces || [...DEFAULT_TRACES];
 
+  const rollTraces = useMemo(
+    () => visiblePanelTraces(traceData?.panels?.roll, visibleTraces),
+    [traceData?.panels?.roll, visibleTraces],
+  );
+  const pitchTraces = useMemo(
+    () => visiblePanelTraces(traceData?.panels?.pitch, visibleTraces),
+    [traceData?.panels?.pitch, visibleTraces],
+  );
+  const yawTraces = useMemo(
+    () => visiblePanelTraces(traceData?.panels?.yaw, visibleTraces),
+    [traceData?.panels?.yaw, visibleTraces],
+  );
+
+  const rollYRange = useMemo(() => computeTraceYRange(rollTraces), [rollTraces]);
+  const pitchYRange = useMemo(() => computeTraceYRange(pitchTraces), [pitchTraces]);
+  const yawYRange = useMemo(() => computeTraceYRange(yawTraces), [yawTraces]);
+
+  const rollCaption = useMemo(() => buildPanelCaption('roll', rollTraces), [rollTraces]);
+  const pitchCaption = useMemo(() => buildPanelCaption('pitch', pitchTraces), [pitchTraces]);
+  const yawCaption = useMemo(() => buildPanelCaption('yaw', yawTraces), [yawTraces]);
+
   const motorPanelTraces =
     traceData?.motor_panel?.filter((t) => visibleTraces.includes(t.key)) ?? [];
   const throttleTraces = motorPanelTraces.filter((t) => t.key === 'throttle');
@@ -35,14 +66,26 @@ export function LogViewerPage() {
     traceData?.motor_panel_units?.motors === 'rpm' ||
     motorRpmTraces.some((t) => t.yaxis === 'y2');
 
+  const motorsUnit: 'rpm' | 'percent' = motorsUseRpm ? 'rpm' : 'percent';
+  const throttleCaption = useMemo(
+    () => buildMotorPanelCaption(throttleTraces, motorsUnit),
+    [throttleTraces, motorsUnit],
+  );
+  const motorRpmCaption = useMemo(
+    () => buildMotorPanelCaption(motorRpmTraces, motorsUnit),
+    [motorRpmTraces, motorsUnit],
+  );
+  const combinedMotorCaption = useMemo(
+    () => buildMotorPanelCaption(motorPanelTraces, motorsUnit),
+    [motorPanelTraces, motorsUnit],
+  );
+
   return (
     <div className="flex gap-4 h-[calc(100vh-80px)]">
       <TraceTogglePanel
         traces={available}
         visible={visibleTraces}
         onToggle={toggleTrace}
-        yScale={settings.yScale}
-        onYScaleChange={(v) => setSettings({ yScale: v })}
       />
 
       <div className="flex-1 flex flex-col min-h-0 gap-2">
@@ -63,36 +106,31 @@ export function LogViewerPage() {
               </div>
             )}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
-            {traceData?.panels?.roll && settings.plotR && (
+            {traceData?.panels?.roll && settings.plotR && rollTraces.length > 0 && (
               <TimeSeriesPlot
-                title="Roll (deg/s)"
-                traces={traceData.panels.roll.filter((t) => visibleTraces.includes(t.key))}
-                yLabel="Roll (deg/s)"
-                yRange={[-settings.yScale, settings.yScale]}
+                title={rollCaption.title}
+                traces={rollTraces}
+                yLabel={rollCaption.yLabel}
+                yRange={rollYRange}
                 lineWidth={settings.lineWidth}
                 saveFilename="log-viewer-roll"
-                epochTrim={
-                  traceData.epoch
-                    ? { start: traceData.epoch[0], end: traceData.epoch[1], onCommit: setEpoch }
-                    : undefined
-                }
               />
             )}
-            {traceData?.panels?.pitch && settings.plotP && (
+            {traceData?.panels?.pitch && settings.plotP && pitchTraces.length > 0 && (
               <TimeSeriesPlot
-                title="Pitch (deg/s)"
-                traces={traceData.panels.pitch.filter((t) => visibleTraces.includes(t.key))}
-                yLabel="Pitch (deg/s)"
-                yRange={[-settings.yScale, settings.yScale]}
+                title={pitchCaption.title}
+                traces={pitchTraces}
+                yLabel={pitchCaption.yLabel}
+                yRange={pitchYRange}
                 lineWidth={settings.lineWidth}
               />
             )}
-            {traceData?.panels?.yaw && settings.plotY && (
+            {traceData?.panels?.yaw && settings.plotY && yawTraces.length > 0 && (
               <TimeSeriesPlot
-                title="Yaw (deg/s)"
-                traces={traceData.panels.yaw.filter((t) => visibleTraces.includes(t.key))}
-                yLabel="Yaw (deg/s)"
-                yRange={[-settings.yScale, settings.yScale]}
+                title={yawCaption.title}
+                traces={yawTraces}
+                yLabel={yawCaption.yLabel}
+                yRange={yawYRange}
                 lineWidth={settings.lineWidth}
               />
             )}
@@ -100,27 +138,27 @@ export function LogViewerPage() {
               <>
                 {throttleTraces.length > 0 && (
                   <TimeSeriesPlot
-                    title="Throttle (%)"
+                    title={throttleCaption.title}
                     traces={throttleTraces}
-                    yLabel="Throttle (%)"
+                    yLabel={throttleCaption.yLabel}
                     yRange={[0, 100]}
                     lineWidth={settings.lineWidth}
                   />
                 )}
                 {motorRpmTraces.length > 0 && (
                   <TimeSeriesPlot
-                    title="Motor (RPM)"
+                    title={motorRpmCaption.title}
                     traces={motorRpmTraces}
-                    yLabel="RPM"
+                    yLabel={motorRpmCaption.yLabel}
                     lineWidth={settings.lineWidth}
                   />
                 )}
               </>
             ) : motorPanelTraces.length > 0 ? (
               <TimeSeriesPlot
-                title="Throttle (%) | Motor (%)"
+                title={combinedMotorCaption.title}
                 traces={motorPanelTraces}
-                yLabel="Throttle | Motor (%)"
+                yLabel={combinedMotorCaption.yLabel}
                 yRange={[0, 100]}
                 lineWidth={settings.lineWidth}
               />
@@ -170,7 +208,7 @@ export function LogViewerPage() {
                 checked={settings[k]}
                 onChange={(e) => setSettings({ [k]: e.target.checked })}
               />{' '}
-              {['R', 'P', 'Y'][i]}
+              {['X', 'Y', 'Z'][i]}
             </label>
           ))}
         </div>

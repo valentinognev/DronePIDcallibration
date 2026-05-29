@@ -12,7 +12,6 @@ export interface AppSettings {
   plotY: boolean;
   lineSmooth: number;
   lineWidth: number;
-  yScale: number;
   singlePanel: boolean;
 }
 
@@ -68,7 +67,6 @@ export const useSessionStore = create<SessionState>()(
         plotY: true,
         lineSmooth: 1,
         lineWidth: 3,
-        yScale: 500,
         singlePanel: false,
       },
       visibleTraces: DEFAULT_VISIBLE_TRACES,
@@ -232,10 +230,16 @@ export const useSessionStore = create<SessionState>()(
             smooth_factor: settings.lineSmooth,
           });
 
-          const px4Available = data.available_traces.filter((t) =>
-            (PX4_EXTRA_TRACES as readonly string[]).includes(t),
+          const isPx4Trace = (t: string) =>
+            (PX4_EXTRA_TRACES as readonly string[]).includes(t);
+          const px4Available = data.available_traces.filter(isPx4Trace);
+          const prevPx4Available = (prevAvailable ?? []).filter(isPx4Trace);
+          // Auto-enable only when PX4 channels first appear (e.g. after ULG upload),
+          // not when the user toggles them off (refreshTraces runs on visibleTraces change).
+          const newlyAvailablePx4 = px4Available.filter(
+            (t) => !prevPx4Available.includes(t),
           );
-          const toEnable = px4Available.filter((t) => !visibleTraces.includes(t));
+          const toEnable = newlyAvailablePx4.filter((t) => !visibleTraces.includes(t));
 
           if (toEnable.length > 0) {
             set({ traceData: data, visibleTraces: [...visibleTraces, ...toEnable], error: null });

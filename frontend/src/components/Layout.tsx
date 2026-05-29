@@ -35,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
         </div>
-        <span className="text-xs text-[var(--text-secondary)]">v0.1.11</span>
+        <span className="text-xs text-[var(--text-secondary)]">v0.1.18</span>
       </header>
       <main className="flex-1 p-4 overflow-auto">{children}</main>
     </div>

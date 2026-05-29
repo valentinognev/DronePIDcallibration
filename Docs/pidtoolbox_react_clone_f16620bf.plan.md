@@ -6,7 +6,7 @@ todos:
     content: "Phase 0: Scaffold backend (FastAPI + pyproject) and frontend (Vite + React + TS + Tailwind + Plotly) with dev proxy and Docker compose"
     status: completed
   - id: phase1
-    content: "Phase 1: Betaflight parser via blackbox_decode + session API + Log Viewer page (R/P/Y panels, traces, epoch trim)"
+    content: "Phase 1: Betaflight parser via blackbox_decode + session API + Log Viewer page (X/Y/Z panels, traces, epoch slider)"
     status: completed
   - id: phase2
     content: "Phase 2: Port PSSpec2d to core/spectral.py, build Spectral Analyzer page and Setup Info diff page"
@@ -120,7 +120,7 @@ The MATLAB `plot/*.m` and `ui/*.m` files become **frontend** pages — no Python
 - Implement `core/parsers/betaflight.py` shelling out to `blackbox_decode` and parsing the resulting CSV with pandas.
 - Extract setup info from `.bbl`/`.bfl` header lines (mirrors [PSimport.m](Refs/PIDscope/src/core/PSimport.m) lines 17–55).
 - Session API: `POST /sessions`, `POST /sessions/:id/files`, `GET /sessions/:id/files/:n/traces`.
-- LogViewer page: file dropzone, per-axis (R/P/Y) panels, trace toggles (Gyro, P/I/D/F-term, Setpoint, PID error/sum, Motors, RPM, Throttle, Debug), epoch trim handles, line smooth/width, dark theme. Match layout in [main2.png](Refs/ScreenShotsShort/main2.png).
+- LogViewer page: file dropzone, per-axis (X/Y/Z body axes → roll/pitch/yaw columns) panels, trace toggles (Betaflight PIDs + PX4 accel/attitude/velocity), **analysis-window slider** (`EpochRangeSlider`), per-trace Y autoscale and dynamic titles (`tracePanelTitle`), line smooth/width, dark theme. Plot-level epoch drag handles were dropped (blocked zoom). Match layout in [main2.png](Refs/ScreenShotsShort/main2.png).
 
 ### Phase 2 — Spectral Analyzer + Setup Info
 - `core/spectral.py::psd_2d` (port of [PSSpec2d.m](Refs/PIDscope/src/core/PSSpec2d.m)).

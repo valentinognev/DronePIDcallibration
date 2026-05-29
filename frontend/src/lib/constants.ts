@@ -1,5 +1,96 @@
 export type AppTheme = 'dark' | 'light';
 
+/** Y-axis unit per trace key (Log Viewer panel titles / labels). */
+export const TRACE_Y_UNITS: Partial<Record<string, string>> = {
+  gyro: 'deg/s',
+  gyro_pf: 'deg/s',
+  pterm: 'deg/s',
+  iterm: 'deg/s',
+  dterm: 'deg/s',
+  dterm_pf: 'deg/s',
+  fterm: 'deg/s',
+  setpoint: 'deg/s',
+  pidsum: 'deg/s',
+  piderr: 'deg/s',
+  accel: 'm/s²',
+  attitude: 'deg',
+  attitude_sp: 'deg',
+  velocity: 'm/s',
+  velocity_sp: 'm/s',
+  throttle: '%',
+};
+
+export type AxisKey = 'roll' | 'pitch' | 'yaw';
+
+const AXIS_RATE_TITLE: Record<AxisKey, string> = {
+  roll: 'Roll rate',
+  pitch: 'Pitch rate',
+  yaw: 'Yaw rate',
+};
+
+const AXIS_ANGLE_TITLE: Record<AxisKey, string> = {
+  roll: 'Roll',
+  pitch: 'Pitch',
+  yaw: 'Yaw',
+};
+
+const AXIS_ACCEL_TITLE: Record<AxisKey, string> = {
+  roll: 'AccX',
+  pitch: 'AccY',
+  yaw: 'AccZ',
+};
+
+const AXIS_VELOCITY_TITLE: Record<AxisKey, string> = {
+  roll: 'Vx',
+  pitch: 'Vy',
+  yaw: 'Vz',
+};
+
+/** Rate-loop trace keys shown on R/P/Y panels (deg/s). */
+const RATE_LOOP_TRACE_KEYS = new Set([
+  'gyro',
+  'gyro_pf',
+  'pterm',
+  'iterm',
+  'dterm',
+  'dterm_pf',
+  'fterm',
+  'setpoint',
+  'pidsum',
+  'piderr',
+]);
+
+/** Log Viewer plot title for one trace on a given axis panel. */
+export function tracePanelTitle(traceKey: string, axis: AxisKey): string {
+  switch (traceKey) {
+    case 'gyro':
+      return AXIS_RATE_TITLE[axis];
+    case 'gyro_pf':
+      return `${AXIS_RATE_TITLE[axis]} (pf)`;
+    case 'setpoint':
+      return `${AXIS_RATE_TITLE[axis]}_SP`;
+    case 'attitude':
+      return AXIS_ANGLE_TITLE[axis];
+    case 'attitude_sp':
+      return `${AXIS_ANGLE_TITLE[axis]}_SP`;
+    case 'accel':
+      return AXIS_ACCEL_TITLE[axis];
+    case 'velocity':
+      return AXIS_VELOCITY_TITLE[axis];
+    case 'velocity_sp':
+      return `${AXIS_VELOCITY_TITLE[axis]}_SP`;
+    default:
+      break;
+  }
+
+  if (RATE_LOOP_TRACE_KEYS.has(traceKey)) {
+    const part = TRACE_LABELS[traceKey] ?? traceKey;
+    return `${AXIS_RATE_TITLE[axis]} — ${part}`;
+  }
+
+  return TRACE_LABELS[traceKey] ?? traceKey;
+}
+
 export const TRACE_LABELS: Record<string, string> = {
   gyro: 'Gyro',
   gyro_pf: 'Gyro(pf)',

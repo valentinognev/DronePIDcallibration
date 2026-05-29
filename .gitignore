@@ -24,6 +24,8 @@ pip-delete-this-directory.txt
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+frontend/.vite/
+*.tsbuildinfo
 *.local
 npm-debug.log*
 yarn-debug.log*
@@ -45,6 +47,19 @@ tools/bin/
 uploads/
 *.parquet
 
+# Local flight logs (dev samples — do not commit; use backend/tests/fixtures for CI)
+Data/*
+!Data/.gitkeep
+
+# Common log binaries anywhere in the tree (override with force-add if needed for fixtures)
+*.ulg
+*.bbl
+*.BBL
+*.bfl
+*.BFL
+*.btfl
+*.BTFL
+
 # OS
 .DS_Store
 Thumbs.db
@@ -62,9 +77,10 @@ desktop.ini
 .classpath
 .settings/
 
-# Logs
+# Logs & PIDs from ./start.sh
 logs/
 *.log
+*.pid
 
 # Temporary files
 tmp/
@@ -74,40 +90,10 @@ temp/
 
 # Cursor (optional local state)
 .cursor/
-Refs/ScreenShotsLong/Filter simulator.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram 2D PSD.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram ColorDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram FilesDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram PresetsDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram PSD.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram SmoothDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram TopDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram TopFilesandlinesDropBox.png
-Refs/ScreenShotsLong/frequency x throttle Spectrogram.png
-Refs/ScreenShotsLong/Frequency x time spectrogram dropdown smooth.png
-Refs/ScreenShotsLong/Frequency x time spectrogram dropdown smoothtime.png
-Refs/ScreenShotsLong/Frequency x time spectrogram dropdown.png
-Refs/ScreenShotsLong/Frequency x time spectrogram.png
-Refs/ScreenShotsLong/history.png
-Refs/ScreenShotsLong/history2.png
-Refs/ScreenShotsLong/MAINDark.png
-Refs/ScreenShotsLong/OpenFile.png
-Refs/ScreenShotsLong/SetupInfoDark.png
-Refs/ScreenShotsLong/SpectralAnalyzer.png
-Refs/ScreenShotsLong/SPECTRALDARK.png
-Refs/ScreenShotsLong/STEPRESPONSEDark.png
-Refs/ScreenShotsLong/StepresponseTool.png
-Refs/ScreenShotsShort/filterSimulator.png
-Refs/ScreenShotsShort/frequencyXthrottle heatmap.png
-Refs/ScreenShotsShort/frequencyXthrottle heatmap0.png
-Refs/ScreenShotsShort/frequencyXtime0.png
-Refs/ScreenShotsShort/frequencyXtime1.png
-Refs/ScreenShotsShort/main1.png
-Refs/ScreenShotsShort/main2.png
-Refs/ScreenShotsShort/SetupInformation.png
-Refs/ScreenShotsShort/spectralAnalyzer.png
-Refs/ScreenShotsShort/stepresponse0.png
-Refs/ScreenShotsShort/stepresponse1.png
+
+# Reference screenshots (large; keep locally under Refs/, not in git)
+Refs/ScreenShotsLong/
+Refs/ScreenShotsShort/
 
 # Agent manager API key (local secret)
 Docs/managerScript/apikey
