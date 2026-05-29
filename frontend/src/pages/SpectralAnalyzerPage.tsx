@@ -11,11 +11,6 @@ const TRACE_OPTIONS = [
   'motor_0', 'motor_1', 'motor_2', 'motor_3',
 ];
 
-const MOTOR_PAIRS: Array<{ label: string; traces: string[] }> = [
-  { label: 'Motors 1–2', traces: ['motor_0', 'motor_1'] },
-  { label: 'Motors 3–4', traces: ['motor_2', 'motor_3'] },
-];
-
 export function SpectralAnalyzerPage() {
   const theme = useAppTheme();
   const { sessionId, files, selectedFileIdx } = useSessionStore();
@@ -25,14 +20,6 @@ export function SpectralAnalyzerPage() {
   const [traces, setTraces] = useState(['gyro', 'gyro_pf']);
   const [selectedFiles, setSelectedFiles] = useState<number[]>([0]);
   const [showRpmOverlay, setShowRpmOverlay] = useState(false);
-
-  const toggleMotorPair = (pairTraces: string[], enabled: boolean) => {
-    setTraces((current) => {
-      const without = current.filter((t) => !pairTraces.includes(t));
-      if (!enabled) return without;
-      return [...without, ...pairTraces.filter((t) => !without.includes(t))];
-    });
-  };
 
   const run = async () => {
     if (!sessionId) return;
@@ -100,18 +87,6 @@ export function SpectralAnalyzerPage() {
           </label>
         ))}
 
-        <div className="text-xs font-medium pt-1">Motor pairs</div>
-        {MOTOR_PAIRS.map(({ label, traces: pairTraces }) => (
-          <label key={label} className="flex gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={pairTraces.every((t) => traces.includes(t))}
-              onChange={(e) => toggleMotorPair(pairTraces, e.target.checked)}
-            />
-            {label}
-          </label>
-        ))}
-
         {TRACE_OPTIONS.map((t) => (
           <label key={t} className="flex gap-2 text-sm">
             <input
@@ -173,7 +148,10 @@ function SpectrumPanel({
         type: 'scatter',
         mode: 'lines',
         name: `${String(file.name)} — ${trace}`,
-        line: { color: getTraceColor(trace, theme), width: trace.startsWith('motor_') ? 1 : 2 },
+        line: {
+          color: getTraceColor(trace, theme),
+          width: trace.startsWith('motor_') ? 1 : 2,
+        },
       });
     });
   });

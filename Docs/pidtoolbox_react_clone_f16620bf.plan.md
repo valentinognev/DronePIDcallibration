@@ -120,12 +120,12 @@ The MATLAB `plot/*.m` and `ui/*.m` files become **frontend** pages — no Python
 - Implement `core/parsers/betaflight.py` shelling out to `blackbox_decode` and parsing the resulting CSV with pandas.
 - Extract setup info from `.bbl`/`.bfl` header lines (mirrors [PSimport.m](Refs/PIDscope/src/core/PSimport.m) lines 17–55).
 - Session API: `POST /sessions`, `POST /sessions/:id/files`, `GET /sessions/:id/files/:n/traces`.
-- LogViewer page: file dropzone, per-axis (X/Y/Z body axes → roll/pitch/yaw columns) panels, trace toggles (Betaflight PIDs + PX4 accel/attitude/velocity), **analysis-window slider** (`EpochRangeSlider`), per-trace Y autoscale and dynamic titles (`tracePanelTitle`), line smooth/width, dark theme. Plot-level epoch drag handles were dropped (blocked zoom). Match layout in [main2.png](Refs/ScreenShotsShort/main2.png).
+- LogViewer page: file dropzone, per-axis (X/Y/Z body axes → roll/pitch/yaw columns) panels, trace toggles (Betaflight PIDs + PX4 accel/attitude/velocity/motor input), **analysis-window slider** (`EpochRangeSlider`), per-trace Y autoscale and dynamic titles (`tracePanelTitle`), line smooth/width, dark theme. PX4 motors: RPM from `esc_status`, input from `actuator_motors`, PWM fallback from `actuator_outputs` (see README § PX4 ULOG motors). Plot-level epoch drag handles were dropped (blocked zoom). Match layout in [main2.png](Refs/ScreenShotsShort/main2.png).
 
 ### Phase 2 — Spectral Analyzer + Setup Info
 - `core/spectral.py::psd_2d` (port of [PSSpec2d.m](Refs/PIDscope/src/core/PSSpec2d.m)).
 - API: `POST /analysis/spectrum` taking `{session, file_idx, axes, traces, psd|amp, sub100hz}`.
-- SpectralAnalyzer page: 3×2 grid (R/P/Y × Full/Sub-100Hz) per [spectralAnalyzer.png](Refs/ScreenShotsShort/spectralAnalyzer.png). Multi-file overlay.
+- SpectralAnalyzer page: 3×2 grid (R/P/Y × Full/Sub-100Hz) per [spectralAnalyzer.png](Refs/ScreenShotsShort/spectralAnalyzer.png). Multi-file overlay; per-motor RPM toggles (no motor-in, no pair bulk toggles).
 - Setup Info page with side-by-side diff highlighting (per [SetupInformation.png](Refs/ScreenShotsShort/SetupInformation.png)).
 
 ### Phase 3 — Step Response Tool

@@ -107,6 +107,10 @@ export const TRACE_LABELS: Record<string, string> = {
   motor_1: 'Motor 2',
   motor_2: 'Motor 3',
   motor_3: 'Motor 4',
+  motor_in_0: 'Motor 1 in',
+  motor_in_1: 'Motor 2 in',
+  motor_in_2: 'Motor 3 in',
+  motor_in_3: 'Motor 4 in',
   debug: 'Debug',
   accel: 'Accel',
   attitude: 'Attitude',
@@ -131,6 +135,10 @@ export const TRACE_COLORS: Record<string, string> = {
   motor_1: '#ff9900',
   motor_2: '#0099ff',
   motor_3: '#00cccc',
+  motor_in_0: '#ff6666',
+  motor_in_1: '#ffaa66',
+  motor_in_2: '#66aaff',
+  motor_in_3: '#66ffcc',
   debug: '#ff0000',
   accel: '#ff66cc',
   attitude: '#66ff66',
@@ -148,6 +156,7 @@ export const BETAFLIGHT_DEFAULT_TRACES = [
 /** PX4-only trace keys (also included in DEFAULT_TRACES for toggle labels/colors). */
 export const PX4_EXTRA_TRACES = [
   'accel', 'attitude', 'attitude_sp', 'velocity', 'velocity_sp',
+  'motor_in_0', 'motor_in_1', 'motor_in_2', 'motor_in_3',
 ] as const;
 
 export const DEFAULT_TRACES = [...BETAFLIGHT_DEFAULT_TRACES, ...PX4_EXTRA_TRACES];
@@ -286,3 +295,14 @@ export const FALLBACK_FIRMWARES: FirmwareOption[] = [
 ];
 
 export const LOG_FILE_ACCEPT = '.bbl,.bfl,.csv,.bin,.json,.txt,.ulg';
+
+/** Firmware keys that use blackbox_decode (BBL/BFL/BTFL). */
+export const BETAFLIGHT_FAMILY_FIRMWARES = [
+  'betaflight',
+  'emuflight',
+  'fettec',
+  'rotorflight',
+  'kiss',
+] as const;
+
+export const BLACKBOX_FILE_EXTENSIONS = ['.bbl', '.bfl', '.btfl'] as const;

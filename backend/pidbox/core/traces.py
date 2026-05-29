@@ -37,6 +37,10 @@ TRACE_DEFS: dict[str, dict[str, Any]] = {
     "motor_1": {"col": "eRPM_1_", "alt_cols": ["motor_1_"], "label": "Motor 2 (RPM)", "color": "#ff9900"},
     "motor_2": {"col": "eRPM_2_", "alt_cols": ["motor_2_"], "label": "Motor 3 (RPM)", "color": "#0099ff"},
     "motor_3": {"col": "eRPM_3_", "alt_cols": ["motor_3_"], "label": "Motor 4 (RPM)", "color": "#00cccc"},
+    "motor_in_0": {"col": "motor_in_0_", "label": "Motor 1 in", "color": "#ff6666"},
+    "motor_in_1": {"col": "motor_in_1_", "label": "Motor 2 in", "color": "#ffaa66"},
+    "motor_in_2": {"col": "motor_in_2_", "label": "Motor 3 in", "color": "#66aaff"},
+    "motor_in_3": {"col": "motor_in_3_", "label": "Motor 4 in", "color": "#66ffcc"},
     "debug": {"col": "debug_{axis}_", "label": "Debug", "color": "#ff0000"},
     "accel": {"col": "accel_{axis}_", "label": "Accel", "color": "#cccc00"},
     "attitude": {
@@ -108,7 +112,19 @@ def _scale_trace_values(trace_key: str, col: str, y: np.ndarray) -> np.ndarray:
     return y
 
 
+def _motor_trace_index(trace_key: str) -> int | None:
+    if trace_key.startswith("motor_in_"):
+        suffix = trace_key[len("motor_in_") :]
+        return int(suffix) if suffix.isdigit() else None
+    if trace_key.startswith("motor_"):
+        suffix = trace_key[len("motor_") :]
+        return int(suffix) if suffix.isdigit() else None
+    return None
+
+
 def _motor_trace_yaxis(trace_key: str, col: str) -> str:
+    if trace_key.startswith("motor_in_"):
+        return "y"
     if trace_key.startswith("motor_") and col.startswith("eRPM_"):
         return "y2"
     return "y"
@@ -185,7 +201,7 @@ def extract_log_viewer_traces(
         axis_name = AXIS_NAMES[axis_idx]
         traces = []
         for key in trace_keys:
-            if key == "throttle" or key.startswith("motor_"):
+            if key == "throttle" or _motor_trace_index(key) is not None:
                 continue
             y = get_trace(df, key, axis_idx)
             if y is None:
@@ -226,8 +242,7 @@ def extract_log_viewer_traces(
                         "yaxis": "y",
                     }
                 )
-        elif key.startswith("motor_"):
-            motor_idx = int(key.split("_")[1])
+        elif (motor_idx := _motor_trace_index(key)) is not None:
             col = _resolve_col(df, key, motor_idx)
             y = get_trace(df, key, motor_idx)
             if y is not None and col is not None:

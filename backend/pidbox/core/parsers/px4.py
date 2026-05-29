@@ -16,6 +16,14 @@ from pidbox.core.parsers.common import compute_derived_columns
 logger = logging.getLogger(__name__)
 
 RAD2DEG = 180.0 / np.pi
+MAX_MOTORS = 4
+# PWM channels stuck at disarmed/min throttle have ~0 std; flying motors vary.
+MOTOR_OUTPUT_MIN_STD = 1.0
+# Normalized control[] in actuator_motors (0–1); idle channels are constant.
+MOTOR_CONTROL_MIN_STD = 0.01
+# esc_status esc[N].esc_rpm — idle ESC slots stay at 0 RPM.
+ESC_RPM_MIN_STD = 10.0
+MAX_ESC_SLOTS = 8
 
 
 def _safe_dataset(ulog, name: str):
@@ -171,6 +179,119 @@ def _load_velocity(
     return vx, vy, vz, vx_sp, vy_sp, vz_sp
 
 
+def _discover_active_channels(
+    dataset,
+    field_prefix: str,
+    count: int,
+    min_std: float,
+    max_channels: int = MAX_MOTORS,
+) -> list[int]:
+    """Return topic field indices with enough variation to be an active motor channel."""
+    active: list[int] = []
+    for i in range(count):
+        field = f"{field_prefix}[{i}]"
+        if field not in dataset.data:
+            continue
+        values = np.asarray(dataset.data[field], dtype=float)
+        finite = values[np.isfinite(values)]
+        if len(finite) == 0:
+            continue
+        if float(np.nanstd(finite)) > min_std:
+            active.append(i)
+    return sorted(active)[:max_channels]
+
+
+def _discover_motor_output_channels(dataset, max_motors: int = MAX_MOTORS) -> list[int]:
+    """Map logical motors 0..N-1 to actuator_outputs output[] indices with varying PWM."""
+    return _discover_active_channels(dataset, "output", 16, MOTOR_OUTPUT_MIN_STD, max_motors)
+
+
+def _discover_motor_control_channels(dataset, max_motors: int = MAX_MOTORS) -> list[int]:
+    """Map logical motors 0..N-1 to actuator_motors control[] indices."""
+    return _discover_active_channels(dataset, "control", 12, MOTOR_CONTROL_MIN_STD, max_motors)
+
+
+def _discover_esc_rpm_channels(dataset, max_motors: int = MAX_MOTORS) -> list[int]:
+    """Map logical motors 0..N-1 to esc_status esc[N].esc_rpm indices."""
+    active: list[int] = []
+    for i in range(MAX_ESC_SLOTS):
+        field = f"esc[{i}].esc_rpm"
+        if field not in dataset.data:
+            continue
+        values = np.asarray(dataset.data[field], dtype=float)
+        finite = values[np.isfinite(values)]
+        if len(finite) == 0:
+            continue
+        if float(np.nanstd(finite)) > ESC_RPM_MIN_STD:
+            active.append(i)
+    return sorted(active)[:max_motors]
+
+
+def _load_motors(
+    ulog,
+    time_us: np.ndarray,
+    metadata: dict,
+) -> dict[str, np.ndarray]:
+    """Load PX4 motor RPM (esc_status), PWM output, and control input onto gyro timeline."""
+    result: dict[str, np.ndarray] = {}
+
+    esc = _safe_dataset(ulog, "esc_status")
+    if esc is not None:
+        rpm_channels = _discover_esc_rpm_channels(esc)
+        if rpm_channels:
+            esc_us = _timestamp_us(esc)
+            for motor_idx, ch in enumerate(rpm_channels):
+                rpm = np.asarray(esc.data[f"esc[{ch}].esc_rpm"], dtype=float)
+                result[f"eRPM_{motor_idx}_"] = _interp_to(time_us, esc_us, rpm)
+            metadata["motor_rpm_source"] = "esc_status"
+            metadata["motor_rpm_channels"] = rpm_channels
+        else:
+            metadata["motor_rpm_source"] = None
+            metadata["motor_rpm_channels"] = []
+    else:
+        metadata["motor_rpm_source"] = None
+        metadata["motor_rpm_channels"] = []
+
+    outs = _safe_dataset(ulog, "actuator_outputs")
+    if outs is not None:
+        out_channels = _discover_motor_output_channels(outs)
+        if out_channels:
+            out_us = _timestamp_us(outs)
+            for motor_idx, ch in enumerate(out_channels):
+                pwm = np.asarray(outs.data[f"output[{ch}]"], dtype=float)
+                result[f"motor_{motor_idx}_"] = _interp_to(time_us, out_us, pwm)
+            metadata["motor_source"] = "actuator_outputs"
+            metadata["motor_output_channels"] = out_channels
+        else:
+            metadata["motor_source"] = None
+            metadata["motor_output_channels"] = []
+    else:
+        metadata["motor_source"] = None
+        metadata["motor_output_channels"] = []
+
+    motors_in = _safe_dataset(ulog, "actuator_motors")
+    if motors_in is not None:
+        in_channels = _discover_motor_control_channels(motors_in)
+        if in_channels:
+            in_us = _timestamp_us(motors_in)
+            for motor_idx, ch in enumerate(in_channels):
+                control = np.asarray(motors_in.data[f"control[{ch}]"], dtype=float)
+                # Store as percent (0–100) to match motor output trace units in the UI.
+                result[f"motor_in_{motor_idx}_"] = (
+                    _interp_to(time_us, in_us, control) * 100.0
+                )
+            metadata["motor_input_source"] = "actuator_motors"
+            metadata["motor_input_channels"] = in_channels
+        else:
+            metadata["motor_input_source"] = None
+            metadata["motor_input_channels"] = []
+    else:
+        metadata["motor_input_source"] = None
+        metadata["motor_input_channels"] = []
+
+    return result
+
+
 def _build_setup_info(ulog, path: Path) -> list[tuple[str, str]]:
     setup: list[tuple[str, str]] = [
         ("Firmware revision", "PX4"),
@@ -302,8 +423,22 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
             time_us, att_us, np.rad2deg(np.asarray(att.data["yaw"], dtype=float))
         )
 
+    df_dict.update(_load_motors(ulog, time_us, metadata))
+
     df = pd.DataFrame(df_dict)
     setup_info = _build_setup_info(ulog, path)
+    if metadata.get("motor_output_channels"):
+        setup_info.append(
+            ("Motor output channels", str(metadata["motor_output_channels"]))
+        )
+    if metadata.get("motor_rpm_channels"):
+        setup_info.append(
+            ("Motor RPM channels", str(metadata["motor_rpm_channels"]))
+        )
+    if metadata.get("motor_input_channels"):
+        setup_info.append(
+            ("Motor input channels", str(metadata["motor_input_channels"]))
+        )
     return df, setup_info, metadata
 
 

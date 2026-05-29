@@ -2,8 +2,8 @@
 
 A modern web reimplementation of [PIDtoolbox](https://github.com/bw1129/PIDtoolbox) / [PIDscope](Refs/PIDscope/) for multirotor PID tuning from blackbox flight logs. The mathematical backend is **Python** (FastAPI, NumPy, SciPy); the UI is **React + TypeScript + Tailwind + Plotly.js**.
 
-**Current version:** `0.1.19`  
-**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: Step Response multi-signal overlay (rate/attitude/velocity/accel), PX4 velocity/accel step detection, Log Viewer trace-toggle fixes (see [UPDATES.md](UPDATES.md)).
+**Current version:** `0.1.25`  
+**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: PX4 ULOG motor RPM (`esc_status`), motor input (`actuator_motors`), PWM fallback (`actuator_outputs`); Step Response multi-signal overlay; Spectral Analyzer motor toggles simplified (see [UPDATES.md](UPDATES.md)).
 
 ---
 
@@ -70,7 +70,7 @@ FastAPI (uvicorn :8000)
     └── core/*           — NumPy/SciPy analysis (ports of PIDscope .m files)
 ```
 
-Sessions are ephemeral (in-memory). Parsed data can be cached as Parquet under `~/.cache/pidbox/`. User defaults persist to `~/.cache/pidbox/defaults.json`.
+Sessions are ephemeral (in-memory). A backend restart clears all sessions — the UI recreates a session automatically on load/upload (do not rely on a persisted session id). Parsed data can be cached as Parquet under `~/.cache/pidbox/`. User defaults persist to `~/.cache/pidbox/defaults.json`.
 
 ### Environment variables
 
@@ -161,13 +161,25 @@ Global state: `frontend/src/store/sessionStore.ts` (Zustand + localStorage for U
 
 | Area | Behavior |
 |------|----------|
-| **Firmware** | Betaflight family, INAV, ArduPilot, QuickSilver, **PX4** (`.ulg` via `pyulog`; upload auto-selects PX4 firmware). |
+| **Firmware** | Betaflight family, INAV, ArduPilot, QuickSilver, **PX4** (`.ulg` via `pyulog`). Upload auto-selects firmware: `.ulg` → PX4, `.bbl`/`.bfl`/`.btfl` → Betaflight. |
 | **Selection panel** (left) | Trace checkboxes with colors; toggling refetches traces and **autoscales** Y on X/Y/Z panels. |
 | **Plots** | Three axis panels (body X/Y/Z → roll/pitch/yaw data columns). Titles are signal-specific (e.g. `Roll rate`, `AccX`, `Vx_SP`); Y-axis label shows units only. |
 | **Analysis window** | Dual-handle slider above plots (`EpochRangeSlider`); sets epoch for all tools. No draggable trim handles on plots (avoids blocking zoom). |
 | **Control panel** (right) | Firmware, file picker, **X / Y / Z** panel visibility, line smooth/width, theme, save settings. |
 | **Helpers** | `computeTraceYRange`, `buildPanelCaption`, `tracePanelTitle` in `frontend/src/lib/utils.ts` / `constants.ts`. |
 | **Trace toggles** | Rapid channel on/off no longer leaves ghost curves (Plotly remount + `refreshTraces` request sequencing + `pruneTraceData()`). |
+| **PX4 traces** | Extra toggles: accel, attitude, velocity, **motor input** (`motor_in_*`). Motor RPM uses `eRPM_*` from ESC when logged (see [PX4 ULOG motors](#px4-ulog-motors)). |
+| **Motor / throttle panel** | Throttle + up to four motors; RPM on secondary Y when `eRPM_*` present, else PWM as percent. |
+
+### Spectral Analyzer (`SpectralAnalyzerPage`)
+
+| Area | Behavior |
+|------|----------|
+| **Grid** | 3×2 plots: Roll/Pitch/Yaw × full spectrum and sub-100 Hz. |
+| **Traces** | Per-trace checkboxes (gyro, PID terms, setpoint, **Motor 1–4** RPM). Motor input (`motor_in_*`) is **not** offered here (Log Viewer only). |
+| **Multi-file** | Up to 10 files with overlay colors (`FILE_OVERLAY_COLORS`). |
+| **RPM overlay** | Optional throttle-binned fundamental RPM lines from `POST /analysis/throttle-spectrum`. |
+| **Run** | `POST /analysis/spectrum` with selected files, traces, and session epoch. |
 
 ### Step Response (`StepResponsePage`)
 
@@ -199,6 +211,22 @@ Registered in `core/parsers/` via `@register_parser`:
 | `px4` | `px4.py` | `.ulg` (ULOG via `pyulog`) |
 
 To add a parser: create a class extending `LogParser` in `core/parsers/`, decorate with `@register_parser`, import it in `core/parsers/__init__.py` and `core/loader.py`.
+
+### PX4 ULOG motors
+
+PX4 logs do not use Betaflight column names. At **load time** the parser scans topics and maps up to four logical motors (`0`…`3`). Physical channel indices vary by airframe and are stored in log metadata / Setup Info.
+
+| Signal | ULOG topic | Field | DataFrame columns | Trace keys | UI |
+|--------|------------|-------|-------------------|------------|-----|
+| **RPM (measured)** | `esc_status` | `esc[N].esc_rpm` | `eRPM_0_`…`eRPM_3_` | `motor_0`…`motor_3` | Log Viewer, Spectral Analyzer (preferred when present) |
+| **Motor input** | `actuator_motors` | `control[N]` | `motor_in_0_`…`motor_in_3_` (0–100%) | `motor_in_0`…`motor_in_3` | Log Viewer only |
+| **PWM output** | `actuator_outputs` | `output[N]` | `motor_0_`…`motor_3_` (scaled to %) | fallback for `motor_*` if no `eRPM_*` | — |
+
+**Discovery:** a channel is “active” if its sample std exceeds a firmware-specific threshold (RPM > 10, control > 0.01, PWM > 1). Idle/disarmed slots are skipped.
+
+**Implementation:** `backend/pidbox/core/parsers/px4.py` (`_load_motors`, `_discover_*`); traces in `backend/pidbox/core/traces.py` (`TRACE_DEFS`).
+
+**After parser changes:** re-upload `.ulg` files so sessions pick up new columns.
 
 ---
 
@@ -247,7 +275,7 @@ Priority items for the next agent (also tracked in `UPDATES.md`):
 2. **Validate algorithms** against Octave/PIDscope on real `.bbl` logs from `Refs/PIDscope/tests/`.
 3. **UI parity** — compare each page to `Refs/ScreenShotsShort/` and `Refs/ScreenShotsLong/`:
    - Log viewer: period/markup tool, debug mode overlay (analysis-window slider and PX4 traces are in place; plot-level epoch drag handles were removed intentionally).
-   - Spectral analyzer: multi-file overlay colors, motor pair toggles, RPM overlay.
+   - Spectral analyzer: multi-file overlay colors, RPM overlay.
    - Freq×Throttle: multi-column grid (one trace per column) like original.
    - Step response: error-bar style peak/latency vs reference screenshots; validate velocity/accel on real PX4 logs.
    - Missing tools: PID slider tool, dedicated Bode/chirp page.

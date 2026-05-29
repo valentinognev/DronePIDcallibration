@@ -5,6 +5,86 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.25 — 2026-05-29
+
+### Fixed
+
+- **BBL upload with PX4 firmware selected**: Uploading `.bbl`/`.bfl`/`.btfl` now auto-switches to Betaflight (like `.ulg` → PX4). Fixes `Invalid file format (Failed to parse header)` when the session was still on PX4 after ULOG work.
+- **Parse errors on wrong firmware**: Backend upload failures now return the firmware hint message instead of a raw pyulog/blackbox exception.
+
+### Changed
+
+- UI version `0.1.25`.
+
+---
+
+## 0.1.24 — 2026-05-29
+
+### Fixed
+
+- **“Session not found” after backend reload / BBL upload**: Sessions are in-memory only; a stale `sessionId` in localStorage caused 404 on upload. `ensureBackendSession()` validates or recreates the session before upload/traces/epoch; `sessionId` and file list are no longer persisted. API errors show `detail` text instead of raw JSON.
+
+### Changed
+
+- UI version `0.1.24`.
+
+---
+
+## 0.1.23 — 2026-05-29
+
+### Fixed
+
+- **PX4 motor trace sources**: Motor RPM traces (`motor_0`…`motor_3` → `eRPM_*`) load from `esc_status` `esc[N].esc_rpm` when available; motor input (`motor_in_*`) stays on `actuator_motors` `control[N]`; PWM fallback remains on `actuator_outputs` `output[N]`.
+
+### Changed
+
+- API version `0.1.23`.
+- **README.md**: version `0.1.23`, Spectral Analyzer section, PX4 ULOG motor mapping table, Log Viewer PX4/motor panel notes.
+
+---
+
+## 0.1.22 — 2026-05-29
+
+### Removed
+
+- **Spectral Analyzer motor pair toggles**: per-motor checkboxes only; pair bulk toggles removed as redundant.
+- **Spectral Analyzer motor-in traces**: `motor_in_*` not listed in Params (still available in Log Viewer for PX4).
+
+### Changed
+
+- UI version `0.1.22`.
+- **README.md**: known-gaps note (no motor pair toggles in Spectral Analyzer).
+
+---
+
+## 0.1.21 — 2026-05-29
+
+### Added
+
+- **PX4 motor input traces**: ULOG parser loads `actuator_motors` `control[N]` (normalized 0–1 → percent) as `motor_in_0`…`motor_in_3`, with channel discovery at load time. Log Viewer and setup info (Spectral Analyzer later dropped motor-in toggles in 0.1.22).
+
+### Changed
+
+- API / UI version `0.1.21`.
+
+---
+
+## 0.1.20 — 2026-05-29
+
+### Fixed
+
+- **PX4 motor traces from ULOG**: PX4 parser now reads `actuator_outputs` PWM (`output[N]`), discovers active motor channels at load time (std > 1 PWM vs idle/disarmed outputs), maps up to four motors to `motor_0_`…`motor_3_`, and stores channel indices in log metadata / setup info. Fixes empty motor data in Log Viewer and Spectral Analyzer for `.ulg` logs where motor indices are not fixed 0–3.
+
+### Added
+
+- **Tests**: `test_load_motors_from_actuator_outputs`, `test_discover_motor_output_channels_mock` (`test_px4_parser.py`).
+
+### Changed
+
+- API / UI version `0.1.20`.
+
+---
+
 ## 0.1.19 — 2026-05-29
 
 ### Added

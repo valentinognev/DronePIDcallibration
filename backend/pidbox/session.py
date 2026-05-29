@@ -70,7 +70,11 @@ class SessionManager:
         dest = session.upload_dir / filename
         dest.write_bytes(content)
 
-        logs = load_log_file(dest, session.firmware, log_indices=log_indices)
+        try:
+            logs = load_log_file(dest, session.firmware, log_indices=log_indices)
+        except Exception as e:
+            dest.unlink(missing_ok=True)
+            raise ValueError(empty_parse_error_message(dest, session.firmware)) from e
         if not logs:
             dest.unlink(missing_ok=True)
             raise ValueError(empty_parse_error_message(dest, session.firmware))

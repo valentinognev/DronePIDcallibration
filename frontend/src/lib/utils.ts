@@ -48,6 +48,7 @@ export function buildMotorPanelCaption(
     ...new Set(
       traces.map((t) => {
         if (t.key === 'throttle') return '%';
+        if (t.key.startsWith('motor_in_')) return '%';
         if (t.key.startsWith('motor_')) return motorsUnit === 'rpm' ? 'RPM' : '%';
         return TRACE_Y_UNITS[t.key] ?? '';
       }).filter(Boolean),

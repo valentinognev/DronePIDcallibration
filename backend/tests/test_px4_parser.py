@@ -9,12 +9,21 @@ import pytest
 
 from pidbox.core.loader import list_firmwares
 from pidbox.core.parsers.base import PARSERS, get_parser
-from pidbox.core.parsers.px4 import Px4Parser, _read_px4_ulg
+from pidbox.core.parsers.px4 import (
+    Px4Parser,
+    _discover_esc_rpm_channels,
+    _discover_motor_control_channels,
+    _discover_motor_output_channels,
+    _read_px4_ulg,
+)
+from pidbox.core.traces import _resolve_col
+from pidbox.core.traces import get_trace, list_available_traces
 
 PRIMARY_ULG = Path(
     "/home/valentin/RL/TESTFLIGHTS/RLCat2_3blades/RLFlights/good/log_5_2026-1-14-11-27-12.ulg"
 )
 NO_FIFO_ULG = Path("/home/valentin/RL/TESTFLIGHTS/sininput.ulg")
+MOTOR_ULG = Path(__file__).resolve().parents[2] / "Data/log_0_2025-12-22-22-22-21.ulg"
 
 
 def test_px4_registered():
@@ -106,6 +115,79 @@ def test_load_ulg_without_fifo():
     df = log.dataframe
     assert "gyroADC_0_" in df.columns
     assert len(df) > 100
+
+
+@pytest.mark.skipif(not MOTOR_ULG.is_file(), reason="PX4 motor test ULG not available")
+def test_load_motors_from_px4_ulog():
+    logs = Px4Parser().parse(MOTOR_ULG)
+    log = logs[0]
+    assert log.metadata.get("motor_rpm_source") == "esc_status"
+    assert log.metadata.get("motor_rpm_channels") == [0, 1, 2, 3]
+    assert log.metadata.get("motor_source") == "actuator_outputs"
+    assert log.metadata.get("motor_output_channels") == [0, 1, 2, 3]
+    assert log.metadata.get("motor_input_source") == "actuator_motors"
+    assert log.metadata.get("motor_input_channels") == [0, 1, 2, 3]
+
+    df = log.dataframe
+    for k in range(4):
+        erpm_col = f"eRPM_{k}_"
+        assert erpm_col in df.columns
+        assert df[erpm_col].max() > 100.0
+        assert df[erpm_col].std() > 10.0
+        pwm_col = f"motor_{k}_"
+        assert pwm_col in df.columns
+        assert df[pwm_col].max() > 40.0
+        in_col = f"motor_in_{k}_"
+        assert in_col in df.columns
+        assert df[in_col].max() > 10.0
+        assert df[in_col].std() > 1.0
+
+    available = list_available_traces(df)
+    for k in range(4):
+        assert f"motor_{k}" in available
+        assert f"motor_in_{k}" in available
+
+    assert _resolve_col(df, "motor_0", 0) == "eRPM_0_"
+    m0 = get_trace(df, "motor_0", 0)
+    assert m0 is not None
+    assert m0.max() > 100.0
+    mi0 = get_trace(df, "motor_in_0", 0)
+    assert mi0 is not None
+    assert mi0.max() <= 100.0
+
+
+def test_discover_motor_output_channels_mock():
+    class FakeDataset:
+        data = {
+            "output[0]": [900.0, 1500.0, 2000.0],
+            "output[1]": [900.0, 1600.0, 1900.0],
+            "output[2]": [900.0] * 3,
+            "output[3]": [900.0, 900.0, 900.0],
+        }
+
+    assert _discover_motor_output_channels(FakeDataset()) == [0, 1]
+
+
+def test_discover_esc_rpm_channels_mock():
+    class FakeDataset:
+        data = {
+            "esc[0].esc_rpm": [0.0, 3000.0, 6000.0],
+            "esc[1].esc_rpm": [0.0, 3100.0, 5900.0],
+            "esc[2].esc_rpm": [0.0, 0.0, 0.0],
+        }
+
+    assert _discover_esc_rpm_channels(FakeDataset()) == [0, 1]
+
+
+def test_discover_motor_control_channels_mock():
+    class FakeDataset:
+        data = {
+            "control[0]": [0.0, 0.5, 1.0],
+            "control[1]": [0.0, 0.6, 0.9],
+            "control[2]": [0.0, 0.0, 0.0],
+        }
+
+    assert _discover_motor_control_channels(FakeDataset()) == [0, 1]
 
 
 def test_read_px4_ulg_mock(monkeypatch):

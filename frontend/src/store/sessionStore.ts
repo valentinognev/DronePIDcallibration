@@ -2,7 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 import type { FileInfo, TraceData } from '../lib/api';
-import { FALLBACK_FIRMWARES, PX4_EXTRA_TRACES, type FirmwareOption } from '../lib/constants';
+import {
+  BETAFLIGHT_FAMILY_FIRMWARES,
+  BLACKBOX_FILE_EXTENSIONS,
+  FALLBACK_FIRMWARES,
+  PX4_EXTRA_TRACES,
+  type FirmwareOption,
+} from '../lib/constants';
 
 export interface AppSettings {
   firmware: string;
@@ -49,6 +55,30 @@ function fileListHasUlg(files: FileList): boolean {
   return Array.from(files).some((f) => f.name.toLowerCase().endsWith('.ulg'));
 }
 
+function fileListHasBlackbox(files: FileList): boolean {
+  return Array.from(files).some((f) => {
+    const name = f.name.toLowerCase();
+    return BLACKBOX_FILE_EXTENSIONS.some((ext) => name.endsWith(ext));
+  });
+}
+
+function isBetaflightFamilyFirmware(firmware: string): boolean {
+  return (BETAFLIGHT_FAMILY_FIRMWARES as readonly string[]).includes(firmware);
+}
+
+async function sessionFirmwareMatches(
+  sessionId: string | null,
+  firmware: string,
+): Promise<boolean> {
+  if (!sessionId) return false;
+  try {
+    const session = await api.getSession(sessionId);
+    return session.firmware === firmware;
+  } catch {
+    return false;
+  }
+}
+
 /** Drop trace series that are not currently visible (avoids stale overlays after toggles). */
 function pruneTraceData(data: TraceData, visible: string[]): TraceData {
   const visibleSet = new Set(visible);
@@ -63,6 +93,32 @@ function pruneTraceData(data: TraceData, visible: string[]): TraceData {
 }
 
 let traceRefreshId = 0;
+
+/** Ensure the backend still has this session (in-memory; lost on server restart). */
+async function ensureBackendSession(
+  get: () => SessionState,
+  set: (partial: Partial<SessionState> | ((s: SessionState) => Partial<SessionState>)) => void,
+): Promise<string> {
+  const { sessionId, settings } = get();
+  if (sessionId) {
+    try {
+      await api.getSession(sessionId);
+      return sessionId;
+    } catch {
+      // Stale ID from localStorage or server reload — create a new session below.
+    }
+  }
+  const session = await api.createSession(settings.firmware);
+  set({
+    sessionId: session.session_id,
+    files: [],
+    traceData: null,
+    selectedFileIdx: 0,
+    selectedLogIdx: 0,
+    error: null,
+  });
+  return session.session_id;
+}
 
 export const useSessionStore = create<SessionState>()(
   persist(
@@ -137,13 +193,9 @@ export const useSessionStore = create<SessionState>()(
         })),
 
       initSession: async () => {
-        const { sessionId, settings } = get();
-        if (sessionId) return;
-
         set({ loading: true, error: null });
         try {
-          const session = await api.createSession(settings.firmware);
-          set({ sessionId: session.session_id });
+          await ensureBackendSession(get, set);
         } catch (e) {
           set({ error: String(e) });
         } finally {
@@ -152,59 +204,44 @@ export const useSessionStore = create<SessionState>()(
       },
 
       restoreSession: async () => {
-        const { sessionId } = get();
-        if (!sessionId) return;
-
         set({ loading: true, error: null });
         try {
+          const sessionId = await ensureBackendSession(get, set);
           const session = await api.getSession(sessionId);
           set({ files: session.files, error: null });
           if (session.files.length > 0) {
             await get().refreshTraces();
           }
-        } catch {
-          set({
-            sessionId: null,
-            files: [],
-            traceData: null,
-            selectedFileIdx: 0,
-            selectedLogIdx: 0,
-            error: null,
-          });
+        } catch (e) {
+          set({ error: String(e) });
         } finally {
           set({ loading: false });
         }
       },
 
       uploadFiles: async (fileList) => {
+        const { settings, sessionId } = get();
+
         if (fileListHasUlg(fileList)) {
-          const { settings, sessionId } = get();
-          let needPx4Session = settings.firmware !== 'px4';
-          if (!needPx4Session && sessionId) {
-            try {
-              const session = await api.getSession(sessionId);
-              needPx4Session = session.firmware !== 'px4';
-            } catch {
-              needPx4Session = true;
-            }
-          } else if (!sessionId) {
-            needPx4Session = true;
-          }
-          if (needPx4Session) {
+          const needPx4 =
+            settings.firmware !== 'px4' ||
+            !(await sessionFirmwareMatches(sessionId, 'px4'));
+          if (needPx4) {
             await get().setFirmware('px4', true);
           }
+        } else if (fileListHasBlackbox(fileList)) {
+          const needBetaflight =
+            !isBetaflightFamilyFirmware(settings.firmware) ||
+            !(await sessionFirmwareMatches(sessionId, settings.firmware));
+          if (needBetaflight) {
+            await get().setFirmware('betaflight', true);
+          }
         }
-
-        let { sessionId } = get();
-        if (!sessionId) {
-          await get().initSession();
-          sessionId = get().sessionId;
-        }
-        if (!sessionId) return;
 
         const files = Array.from(fileList);
         set({ loading: true, error: null });
         try {
+          const sessionId = await ensureBackendSession(get, set);
           for (const file of files) {
             await api.uploadFile(sessionId, file);
           }
@@ -219,8 +256,17 @@ export const useSessionStore = create<SessionState>()(
       },
 
       refreshTraces: async () => {
-        const { sessionId, selectedFileIdx, selectedLogIdx, visibleTraces, settings, traceData } = get();
-        if (!sessionId || get().files.length === 0) return;
+        if (get().files.length === 0) return;
+
+        let sessionId: string;
+        try {
+          sessionId = await ensureBackendSession(get, set);
+        } catch (e) {
+          set({ error: String(e) });
+          return;
+        }
+
+        const { selectedFileIdx, selectedLogIdx, visibleTraces, settings, traceData } = get();
 
         const requestId = ++traceRefreshId;
 
@@ -284,8 +330,9 @@ export const useSessionStore = create<SessionState>()(
       },
 
       setEpoch: async (start, end) => {
-        const { sessionId, selectedFileIdx, selectedLogIdx } = get();
-        if (!sessionId) return;
+        if (get().files.length === 0) return;
+        const sessionId = await ensureBackendSession(get, set);
+        const { selectedFileIdx, selectedLogIdx } = get();
         await api.updateEpoch(sessionId, selectedFileIdx, selectedLogIdx, start, end);
         await get().refreshTraces();
       },
@@ -304,10 +351,7 @@ export const useSessionStore = create<SessionState>()(
       partialize: (s) => ({
         settings: s.settings,
         visibleTraces: s.visibleTraces,
-        sessionId: s.sessionId,
-        files: s.files,
-        selectedFileIdx: s.selectedFileIdx,
-        selectedLogIdx: s.selectedLogIdx,
+        // sessionId/files are ephemeral (backend in-memory); do not persist across reloads.
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.settings.theme) {
