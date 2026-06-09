@@ -17,7 +17,13 @@ AXIS_SUFFIX = ("0", "1", "2")
 
 TRACE_DEFS: dict[str, dict[str, Any]] = {
     "gyro": {"col": "gyroADC_{axis}_", "label": "Gyro", "color": "#ffffff"},
-    "gyro_pf": {"col": "axisDpf_{axis}_", "label": "Gyro(pf)", "color": "#999999"},
+    # PIDscope "Gyro prefilt" → debug_* (axisDpf is Dterm prefilt).
+    "gyro_pf": {
+        "col": "debug_{axis}_",
+        "alt_cols": ["gyroUnfilt_{axis}_"],
+        "label": "Gyro prefilt",
+        "color": "#999999",
+    },
     "pterm": {"col": "axisP_{axis}_", "label": "P-term", "color": "#00b300"},
     "iterm": {"col": "axisI_{axis}_", "label": "I-term", "color": "#1a66cc"},
     "dterm_pf": {"col": "axisDpf_{axis}_", "label": "D-term(pf)", "color": "#ccb31a"},
@@ -98,8 +104,17 @@ def _resolve_col(df: pd.DataFrame, trace_key: str, axis_idx: int | None) -> str 
         return None
     if axis_idx is None:
         return None
-    col = defn["col"].format(axis=axis_idx)
-    return col if col in df.columns else None
+    candidates = [defn["col"].format(axis=axis_idx)]
+    for alt in defn.get("alt_cols", []):
+        candidates.append(alt.format(axis=axis_idx))
+    present = [c for c in candidates if c in df.columns]
+    if not present:
+        return None
+    if trace_key == "gyro_pf" and len(present) > 1:
+        stds = [float(np.nanstd(df[c].values.astype(float))) for c in present]
+        best = int(np.argmax(stds))
+        return present[best] if stds[best] > 1e-6 else present[0]
+    return present[0]
 
 
 def _scale_trace_values(trace_key: str, col: str, y: np.ndarray) -> np.ndarray:

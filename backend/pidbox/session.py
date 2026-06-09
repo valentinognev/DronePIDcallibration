@@ -21,6 +21,7 @@ class SessionFile:
     logs: list[LoadedLog] = field(default_factory=list)
     epoch_start: list[float] = field(default_factory=list)
     epoch_end: list[float] = field(default_factory=list)
+    parse_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -74,12 +75,27 @@ class SessionManager:
             logs = load_log_file(dest, session.firmware, log_indices=log_indices)
         except Exception as e:
             dest.unlink(missing_ok=True)
-            raise ValueError(empty_parse_error_message(dest, session.firmware)) from e
+            detail = empty_parse_error_message(dest, session.firmware)
+            cause = str(e).strip()
+            if cause and cause not in detail:
+                detail = f"{detail} ({cause})"
+            raise ValueError(detail) from e
         if not logs:
             dest.unlink(missing_ok=True)
             raise ValueError(empty_parse_error_message(dest, session.firmware))
 
-        sf = SessionFile(file_id=file_id, original_name=filename, logs=logs)
+        parse_warnings: list[str] = []
+        for log in logs:
+            for msg in log.metadata.get("missing_data", []):
+                if msg not in parse_warnings:
+                    parse_warnings.append(msg)
+
+        sf = SessionFile(
+            file_id=file_id,
+            original_name=filename,
+            logs=logs,
+            parse_warnings=parse_warnings,
+        )
         for log in logs:
             sf.epoch_start.append(log.default_epoch_start)
             sf.epoch_end.append(log.default_epoch_end)

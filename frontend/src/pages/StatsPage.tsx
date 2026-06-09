@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Plot from '../components/Plot';
 import { AxisSelector } from '../components/AxisSelector';
 import { api } from '../lib/api';
+import { INTERACTIVE_PLOT_CONFIG } from '../lib/constants';
 import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
@@ -63,7 +64,7 @@ export function StatsPage() {
                 },
               ]}
               layout={{ ...plotLayoutBase, height: 300, showlegend: true }}
-              config={{ responsive: true }}
+              config={INTERACTIVE_PLOT_CONFIG}
               style={{ width: '100%' }}
             />
           )}
@@ -86,7 +87,7 @@ export function StatsPage() {
               xaxis: { ...plotLayoutBase.xaxis, title: 'Frequency (Hz)' },
               yaxis: { ...plotLayoutBase.yaxis, title: 'PSD (dB)' },
             }}
-            config={{ responsive: true }}
+            config={INTERACTIVE_PLOT_CONFIG}
             style={{ width: '100%' }}
           />
         </div>

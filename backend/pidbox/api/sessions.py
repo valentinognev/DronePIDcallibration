@@ -41,6 +41,7 @@ def get_session(session_id: str):
             original_name=f.original_name,
             log_count=len(f.logs),
             log_names=[log.name for log in f.logs],
+            parse_warnings=f.parse_warnings,
         )
         for f in session.files
     ]
@@ -78,6 +79,7 @@ async def upload_file(
         original_name=sf.original_name,
         log_count=len(sf.logs),
         log_names=[log.name for log in sf.logs],
+        parse_warnings=sf.parse_warnings,
     )
 
 

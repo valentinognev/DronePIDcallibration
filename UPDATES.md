@@ -5,6 +5,91 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.30 — 2026-06-09
+
+### Added
+
+- **Spectral Analyzer — RPM / dynamic notch overlays** (`core/notch_overlays.py`, `PSplotRPMOverlay.m` parity):
+  - Harmonic overlay curves on **Full Spectrum** panels when **PSD** is on; motor colors (M1–M4), line style per harmonic (solid / dash / dot for 1st / 2nd / 3rd).
+  - RPM source priority: `RPM_FILTER` debug columns when `debug_mode` matches; else **eRPM** telemetry; when **RPM est.** is enabled, motor-spectrum estimate only (no eRPM fallback).
+  - Dynamic notch overlays from `debug_*` columns when `debug_mode == FFT_FREQ` (BF 2025.12+ uses `debug_1..3`; older firmware up to 7 notches).
+  - Overlay frequency axis extends to at least 1000 Hz and 108% of peak harmonic (fixes 3rd harmonic clipped by Nyquist on 1.6 kHz logs).
+- **`POST /analysis/overlay-capabilities`**: probes selected files for RPM/dyn-notch data; UI disables dropdowns with tooltip when unavailable.
+- **Spectral Analyzer — Motor Noise view**: secondary panel mode (`core/motor_noise_harmonics.py`) showing pre/post-filter harmonic averages per axis.
+- **Spectral Analyzer control panel** (PIDscope-style): file list, signal traces, smoothing, **R / P / Y**, PSD, Y min/max, 2×2 motor grid, RPM/Dyn notch dropdowns, RPM est. + multiplier, sub-100 Hz / Motor Noise toggle.
+- **Tests**: `test_notch_overlays.py`, `test_stats.py`; extended `test_spectral.py`, `test_traces.py`, `test_px4_parser.py`.
+
+### Fixed
+
+- **Spectral Analyzer stale state**: notch/motor/smoothing changes re-run analysis with explicit overrides (`SpectrumRunOverrides`) so dropdown toggles update plots immediately.
+- **Half-width Plotly plots after tab switch** (`PersistentRoutes`): `Plot` uses `ResizeObserver` + window resize on route change; `Layout` / `LogViewerPage` flex width chain (`min-w-0`, `w-full`).
+- **PID Stats**: trace length alignment and empty-epoch guard in `compute_pid_stats()` (no crash on missing PID terms).
+
+### Changed
+
+- **`POST /analysis/spectrum`**: extended request (`rpm_notch_mode`, `dyn_notch_mode`, `rpm_motors`, `rpm_estimate`, `rpm_multiplier`, `include_motor_noise`, `smooth_factor`); response includes `rpm_overlays`, `dyn_overlays`, `motor_noise`, `overlay_meta`.
+- **Spectral traces**: signal checkboxes only (gyro, PID terms, setpoint); motors controlled via overlay grid, not spectrum traces.
+- **Multi-file spectra**: per-file line dash (`FILE_OVERLAY_LINE_DASHES`); compact legend (`F1 · Gyro`); external Y/X axis labels on grid panels.
+- API / UI version `0.1.30`.
+
+### Documentation
+
+- **README.md**: Spectral Analyzer section, overlay-capabilities API, module map, known-gaps refresh.
+
+---
+
+## 0.1.29 — 2026-05-29
+
+### Fixed
+
+- **PX4 ULOG (newer logs)**: Attitude setpoint loads from `roll_body`, `roll_d` (PX4ULog), or `q_d` quaternion; attitude from `roll`/`pitch`/`yaw` or `q`. Fixes parse failure on logs such as `log_1_2026-6-7-15-55-40.ulg` where `roll_body` was removed.
+
+### Added
+
+- **Parse warnings**: When a signal has no usable topic (and no fallback channel), the upload response includes `parse_warnings`; Log Viewer shows an amber list after upload.
+
+### Changed (version)
+
+- UI version `0.1.29`.
+
+---
+
+## 0.1.28 — 2026-05-29
+
+### Changed
+
+- **Tab navigation**: Visited analysis pages stay mounted (`PersistentRoutes`) so plots and **Run** results persist when switching tabs; each page loads on first visit only.
+
+### Changed (version)
+
+- UI version `0.1.28`.
+
+---
+
+## 0.1.27 — 2026-05-29
+
+### Changed
+
+- **Filter Sim**: All figures have column titles with per-section delay, external Y/X labels (magnitude, filter delay, phase delay, step response; frequency or time axes), and a labeled combined magnitude plot — aligned with PIDtoolbox reference layout.
+
+### Changed (version)
+
+- UI version `0.1.27`.
+
+---
+
+## 0.1.26 — 2026-05-29
+
+### Changed
+
+- **Freq × Time**: Plot title and axis labels (`Time (s)`, `Frequency (Hz)`) match Freq × Throttle — HTML caption above/beside the heatmap using `tracePanelTitle`; placeholder until **Run**.
+
+### Changed (version)
+
+- UI version `0.1.26`.
+
+---
+
 ## 0.1.25 — 2026-05-29
 
 ### Fixed

@@ -31,6 +31,7 @@ export interface FileInfo {
   original_name: string;
   log_count: number;
   log_names: string[];
+  parse_warnings?: string[];
 }
 
 export interface TraceData {
@@ -97,7 +98,19 @@ export const api = {
       method: 'POST',
       body: form,
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const err = await res.text();
+      let message = err || res.statusText;
+      try {
+        const body = JSON.parse(err) as { detail?: unknown };
+        if (typeof body.detail === 'string') {
+          message = body.detail;
+        }
+      } catch {
+        /* not JSON */
+      }
+      throw new Error(message);
+    }
     return res.json() as Promise<FileInfo>;
   },
 
@@ -136,6 +149,17 @@ export const api = {
 
   runSpectrum: (body: Record<string, unknown>) =>
     request<{ results: Array<Record<string, unknown>> }>('/analysis/spectrum', { method: 'POST', body: JSON.stringify(body) }),
+
+  runOverlayCapabilities: (body: {
+    session_id: string;
+    file_indices: number[];
+    rpm_estimate?: boolean;
+    rpm_multiplier?: number;
+  }) =>
+    request<{
+      rpm_notch: { available: boolean; message: string };
+      dyn_notch: { available: boolean; message: string };
+    }>('/analysis/overlay-capabilities', { method: 'POST', body: JSON.stringify(body) }),
 
   runStepResponse: (body: StepResponseRequest) =>
     request<{ results: StepResponseResult[] }>('/analysis/step-response', { method: 'POST', body: JSON.stringify(body) }),

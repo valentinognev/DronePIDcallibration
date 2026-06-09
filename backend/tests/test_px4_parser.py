@@ -14,6 +14,7 @@ from pidbox.core.parsers.px4 import (
     _discover_esc_rpm_channels,
     _discover_motor_control_channels,
     _discover_motor_output_channels,
+    _euler_from_dataset,
     _read_px4_ulg,
 )
 from pidbox.core.traces import _resolve_col
@@ -24,6 +25,8 @@ PRIMARY_ULG = Path(
 )
 NO_FIFO_ULG = Path("/home/valentin/RL/TESTFLIGHTS/sininput.ulg")
 MOTOR_ULG = Path(__file__).resolve().parents[2] / "Data/log_0_2025-12-22-22-22-21.ulg"
+RLCAT4_ULG = Path("/home/valentin/RL/TESTFLIGHTS/RLcat4/log_1_2026-6-7-15-55-40.ulg")
+LEGACY_ULG = Path("/home/valentin/RL/TESTFLIGHTS/log_0_2025-12-19-10-24-15.ulg")
 
 
 def test_px4_registered():
@@ -188,6 +191,53 @@ def test_discover_motor_control_channels_mock():
         }
 
     assert _discover_motor_control_channels(FakeDataset()) == [0, 1]
+
+
+def test_euler_from_dataset_roll_d():
+    data = {
+        "roll_d": [0.1, 0.2],
+        "pitch_d": [0.0, 0.1],
+        "yaw_d": [1.0, 1.1],
+    }
+    parsed = _euler_from_dataset(data, ("roll_d", "pitch_d", "yaw_d"), None)
+    assert parsed is not None
+    roll, pitch, yaw, label, already_deg = parsed
+    assert label == "roll_d"
+    assert not already_deg
+    assert roll[0] == pytest.approx(0.1)
+
+
+def test_euler_from_dataset_quaternion():
+    data = {"q_d[0]": [1.0], "q_d[1]": [0.0], "q_d[2]": [0.0], "q_d[3]": [0.0]}
+    parsed = _euler_from_dataset(data, ("roll_body", "pitch_body", "yaw_body"), "q_d")
+    assert parsed is not None
+    _, _, _, label, already_deg = parsed
+    assert label == "q_d"
+    assert already_deg
+
+
+@pytest.mark.skipif(not RLCAT4_ULG.is_file(), reason="RLcat4 PX4 ULOG not available")
+def test_load_rlcat4_ulg_without_esc_status():
+    logs = Px4Parser().parse(RLCAT4_ULG)
+    log = logs[0]
+    df = log.dataframe
+    assert len(df) > 100
+    assert log.metadata.get("attitude_setpoint_source") is not None
+    assert "att_sp_roll_" in df.columns
+    assert "att_roll_" in df.columns
+    assert log.metadata.get("motor_rpm_source") is None
+    assert log.metadata.get("motor_source") == "actuator_outputs"
+    missing = log.metadata.get("missing_data", [])
+    assert not any("Attitude setpoint" in m for m in missing)
+
+
+@pytest.mark.skipif(not LEGACY_ULG.is_file(), reason="Legacy PX4 ULOG not available")
+def test_load_legacy_ulg_still_works():
+    logs = Px4Parser().parse(LEGACY_ULG)
+    log = logs[0]
+    assert len(log.dataframe) > 100
+    assert log.metadata.get("motor_rpm_source") == "esc_status"
+    assert "att_sp_roll_" in log.dataframe.columns
 
 
 def test_read_px4_ulg_mock(monkeypatch):

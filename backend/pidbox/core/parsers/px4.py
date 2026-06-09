@@ -45,6 +45,76 @@ def _interp_to(time_us: np.ndarray, src_us: np.ndarray, values: np.ndarray) -> n
     return np.interp(time_us, src_us[mask], values[mask])
 
 
+def _record_missing(metadata: dict, message: str) -> None:
+    """Append a user-facing note when a signal has no usable log source."""
+    missing: list[str] = metadata.setdefault("missing_data", [])
+    if message not in missing:
+        missing.append(message)
+
+
+def _quat_fields_to_euler_deg(data: dict, prefix: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Convert PX4 quaternion fields (w,x,y,z) to roll/pitch/yaw in degrees."""
+    q0 = np.asarray(data[f"{prefix}[0]"], dtype=float)
+    q1 = np.asarray(data[f"{prefix}[1]"], dtype=float)
+    q2 = np.asarray(data[f"{prefix}[2]"], dtype=float)
+    q3 = np.asarray(data[f"{prefix}[3]"], dtype=float)
+
+    sinr_cosp = 2.0 * (q0 * q1 + q2 * q3)
+    cosr_cosp = 1.0 - 2.0 * (q1 * q1 + q2 * q2)
+    roll = np.arctan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2.0 * (q0 * q2 - q3 * q1)
+    pitch = np.where(np.abs(sinp) >= 1.0, np.copysign(np.pi / 2.0, sinp), np.arcsin(sinp))
+
+    siny_cosp = 2.0 * (q0 * q3 + q1 * q2)
+    cosy_cosp = 1.0 - 2.0 * (q2 * q2 + q3 * q3)
+    yaw = np.arctan2(siny_cosp, cosy_cosp)
+
+    return np.rad2deg(roll), np.rad2deg(pitch), np.rad2deg(yaw)
+
+
+def _euler_from_dataset(
+    data: dict,
+    euler_fields: tuple[str, str, str],
+    quat_prefix: str | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, str, bool] | None:
+    """Read Euler angles from named fields (rad) or quaternion prefix (deg)."""
+    roll_f, pitch_f, yaw_f = euler_fields
+    if roll_f in data and pitch_f in data and yaw_f in data:
+        return (
+            np.asarray(data[roll_f], dtype=float),
+            np.asarray(data[pitch_f], dtype=float),
+            np.asarray(data[yaw_f], dtype=float),
+            roll_f,
+            False,
+        )
+
+    if quat_prefix and all(f"{quat_prefix}[{i}]" in data for i in range(4)):
+        roll, pitch, yaw = _quat_fields_to_euler_deg(data, quat_prefix)
+        return roll, pitch, yaw, quat_prefix, True
+
+    return None
+
+
+def _interp_euler(
+    time_us: np.ndarray,
+    src_us: np.ndarray,
+    roll: np.ndarray,
+    pitch: np.ndarray,
+    yaw: np.ndarray,
+    already_deg: bool,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if not already_deg:
+        roll = np.rad2deg(roll)
+        pitch = np.rad2deg(pitch)
+        yaw = np.rad2deg(yaw)
+    return (
+        _interp_to(time_us, src_us, roll),
+        _interp_to(time_us, src_us, pitch),
+        _interp_to(time_us, src_us, yaw),
+    )
+
+
 def _unpack_sensor_fifo(
     dataset,
     axis_fields: tuple[str, str, str] = ("x", "y", "z"),
@@ -130,6 +200,10 @@ def _load_accel(
         )
 
     metadata["accel_source"] = None
+    _record_missing(
+        metadata,
+        "Accelerometer: no sensor_accel_fifo, sensor_combined, or vehicle_acceleration topic logged",
+    )
     return (
         np.zeros_like(time_us, dtype=float),
         np.zeros_like(time_us, dtype=float),
@@ -156,6 +230,7 @@ def _load_velocity(
     else:
         vx = vy = vz = np.zeros_like(time_us, dtype=float)
         metadata["velocity_source"] = None
+        _record_missing(metadata, "Velocity: vehicle_local_position topic not logged")
 
     pos_sp = _safe_dataset(ulog, "vehicle_local_position_setpoint")
     if pos_sp is not None:
@@ -175,8 +250,75 @@ def _load_velocity(
         else:
             vx_sp = vy_sp = vz_sp = np.zeros_like(time_us, dtype=float)
             metadata["velocity_setpoint_source"] = None
+            _record_missing(
+                metadata,
+                "Velocity setpoint: no vehicle_local_position_setpoint or trajectory_setpoint topic logged",
+            )
 
     return vx, vy, vz, vx_sp, vy_sp, vz_sp
+
+
+def _load_attitude(
+    ulog,
+    time_us: np.ndarray,
+    metadata: dict,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    att = _safe_dataset(ulog, "vehicle_attitude")
+    if att is None:
+        metadata["attitude_source"] = None
+        _record_missing(metadata, "Attitude: vehicle_attitude topic not logged")
+        return None
+
+    parsed = _euler_from_dataset(att.data, ("roll", "pitch", "yaw"), "q")
+    if parsed is None:
+        metadata["attitude_source"] = None
+        _record_missing(
+            metadata,
+            "Attitude: vehicle_attitude has no roll/pitch/yaw or quaternion fields",
+        )
+        return None
+
+    roll, pitch, yaw, label, already_deg = parsed
+    att_us = _timestamp_us(att)
+    metadata["attitude_source"] = f"vehicle_attitude ({label})"
+    return _interp_euler(time_us, att_us, roll, pitch, yaw, already_deg)
+
+
+def _load_attitude_setpoint(
+    ulog,
+    time_us: np.ndarray,
+    metadata: dict,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    att_sp = _safe_dataset(ulog, "vehicle_attitude_setpoint")
+    if att_sp is None:
+        metadata["attitude_setpoint_source"] = None
+        _record_missing(metadata, "Attitude setpoint: vehicle_attitude_setpoint topic not logged")
+        return None
+
+    parsed = _euler_from_dataset(
+        att_sp.data,
+        ("roll_body", "pitch_body", "yaw_body"),
+        "q_d",
+    )
+    if parsed is None:
+        parsed = _euler_from_dataset(
+            att_sp.data,
+            ("roll_d", "pitch_d", "yaw_d"),
+            None,
+        )
+
+    if parsed is None:
+        metadata["attitude_setpoint_source"] = None
+        _record_missing(
+            metadata,
+            "Attitude setpoint: no roll_body, roll_d, or q_d fields in vehicle_attitude_setpoint",
+        )
+        return None
+
+    roll, pitch, yaw, label, already_deg = parsed
+    att_sp_us = _timestamp_us(att_sp)
+    metadata["attitude_setpoint_source"] = f"vehicle_attitude_setpoint ({label})"
+    return _interp_euler(time_us, att_sp_us, roll, pitch, yaw, already_deg)
 
 
 def _discover_active_channels(
@@ -289,6 +431,17 @@ def _load_motors(
         metadata["motor_input_source"] = None
         metadata["motor_input_channels"] = []
 
+    if metadata.get("motor_rpm_source") is None and metadata.get("motor_source") is None:
+        _record_missing(
+            metadata,
+            "Motor output/RPM: no esc_status or actuator_outputs with active channels",
+        )
+    if metadata.get("motor_input_source") is None:
+        _record_missing(
+            metadata,
+            "Motor input: actuator_motors topic not logged or no active control channels",
+        )
+
     return result
 
 
@@ -326,6 +479,7 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
         "velocity_unit": "m/s",
         "velocity_frame": "NED local",
         "attitude_unit": "deg",
+        "missing_data": [],
     }
 
     gyro_fifo = _safe_dataset(ulog, "sensor_gyro_fifo")
@@ -364,20 +518,23 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
         sp0 = np.rad2deg(np.asarray(rates_sp.data["roll"], dtype=float))
         sp1 = np.rad2deg(np.asarray(rates_sp.data["pitch"], dtype=float))
         sp2 = np.rad2deg(np.asarray(rates_sp.data["yaw"], dtype=float))
+        metadata["rate_setpoint_source"] = "vehicle_rates_setpoint"
     else:
         sp_us = np.array([time_us[0], time_us[-1]])
         sp0 = sp1 = sp2 = np.zeros(2)
+        metadata["rate_setpoint_source"] = None
+        _record_missing(metadata, "Rate setpoint: vehicle_rates_setpoint topic not logged")
 
     thrust = _safe_dataset(ulog, "vehicle_thrust_setpoint")
     if thrust is not None:
         thr_us = _timestamp_us(thrust)
         thr = np.clip(-np.asarray(thrust.data["xyz[2]"], dtype=float) * 1000.0, 0.0, 1000.0)
+        metadata["throttle_source"] = "vehicle_thrust_setpoint"
     else:
         thr_us = np.array([time_us[0], time_us[-1]])
         thr = np.zeros(2)
-
-    att_sp = _safe_dataset(ulog, "vehicle_attitude_setpoint")
-    att = _safe_dataset(ulog, "vehicle_attitude")
+        metadata["throttle_source"] = None
+        _record_missing(metadata, "Throttle setpoint: vehicle_thrust_setpoint topic not logged")
 
     df_dict: dict[str, np.ndarray] = {
         "time_us": time_us,
@@ -399,29 +556,13 @@ def _read_px4_ulg(path: Path) -> tuple[pd.DataFrame, list[tuple[str, str]], dict
         "vel_sp_2_": vz_sp,
     }
 
-    if att_sp is not None:
-        att_sp_us = _timestamp_us(att_sp)
-        df_dict["att_sp_roll_"] = _interp_to(
-            time_us, att_sp_us, np.rad2deg(np.asarray(att_sp.data["roll_body"], dtype=float))
-        )
-        df_dict["att_sp_pitch_"] = _interp_to(
-            time_us, att_sp_us, np.rad2deg(np.asarray(att_sp.data["pitch_body"], dtype=float))
-        )
-        df_dict["att_sp_yaw_"] = _interp_to(
-            time_us, att_sp_us, np.rad2deg(np.asarray(att_sp.data["yaw_body"], dtype=float))
-        )
+    attitude = _load_attitude(ulog, time_us, metadata)
+    if attitude is not None:
+        df_dict["att_roll_"], df_dict["att_pitch_"], df_dict["att_yaw_"] = attitude
 
-    if att is not None and "roll" in att.data:
-        att_us = _timestamp_us(att)
-        df_dict["att_roll_"] = _interp_to(
-            time_us, att_us, np.rad2deg(np.asarray(att.data["roll"], dtype=float))
-        )
-        df_dict["att_pitch_"] = _interp_to(
-            time_us, att_us, np.rad2deg(np.asarray(att.data["pitch"], dtype=float))
-        )
-        df_dict["att_yaw_"] = _interp_to(
-            time_us, att_us, np.rad2deg(np.asarray(att.data["yaw"], dtype=float))
-        )
+    attitude_sp = _load_attitude_setpoint(ulog, time_us, metadata)
+    if attitude_sp is not None:
+        df_dict["att_sp_roll_"], df_dict["att_sp_pitch_"], df_dict["att_sp_yaw_"] = attitude_sp
 
     df_dict.update(_load_motors(ulog, time_us, metadata))
 

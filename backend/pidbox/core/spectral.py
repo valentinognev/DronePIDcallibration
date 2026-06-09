@@ -156,16 +156,29 @@ def time_freq_calc(
     return tm, freq, np.flipud(spec_arr.T)
 
 
+def smooth_spectrum(spec: np.ndarray, smooth_factor: int = 1) -> np.ndarray:
+    """LOWESS on PSD vs frequency — port of PSplotSpec2D span = log10(n) * factor^3."""
+    spec = np.asarray(spec, dtype=float).ravel()
+    if smooth_factor < 1 or len(spec) < 3:
+        return spec.copy()
+    span = int(np.log10(len(spec)) * (smooth_factor**3))
+    if span < 1:
+        return spec.copy()
+    return smooth_lowess(spec, span)
+
+
 def compute_spectrum_grid(
     signals: dict[str, np.ndarray],
     f_khz: float,
     psd: bool = True,
     sub100hz: bool = False,
+    smooth_factor: int = 1,
 ) -> dict[str, dict[str, np.ndarray]]:
     """Compute full + sub-100Hz spectra for multiple traces."""
     result: dict[str, dict[str, np.ndarray]] = {}
     for name, y in signals.items():
         freqs, spec = psd_2d(y, f_khz, psd=psd)
+        spec = smooth_spectrum(spec, smooth_factor)
         entry: dict[str, np.ndarray] = {"freq": freqs, "spec": spec}
         if sub100hz:
             mask = freqs <= 100

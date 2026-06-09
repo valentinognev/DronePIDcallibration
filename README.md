@@ -2,8 +2,8 @@
 
 A modern web reimplementation of [PIDtoolbox](https://github.com/bw1129/PIDtoolbox) / [PIDscope](Refs/PIDscope/) for multirotor PID tuning from blackbox flight logs. The mathematical backend is **Python** (FastAPI, NumPy, SciPy); the UI is **React + TypeScript + Tailwind + Plotly.js**.
 
-**Current version:** `0.1.25`  
-**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: PX4 ULOG motor RPM (`esc_status`), motor input (`actuator_motors`), PWM fallback (`actuator_outputs`); Step Response multi-signal overlay; Spectral Analyzer motor toggles simplified (see [UPDATES.md](UPDATES.md)).
+**Current version:** `0.1.30`  
+**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: Spectral Analyzer RPM/dynamic-notch overlays and PIDscope-style control panel; persistent tab state (`PersistentRoutes`); PX4 ULOG motors and parse warnings (see [UPDATES.md](UPDATES.md)).
 
 ---
 
@@ -104,7 +104,8 @@ Base URL: `http://localhost:8000/api`
 
 | Method | Path | PIDscope source |
 |--------|------|-----------------|
-| POST | `/analysis/spectrum` | PSSpec2d |
+| POST | `/analysis/spectrum` | PSSpec2d + notch overlays |
+| POST | `/analysis/overlay-capabilities` | RPM/dyn-notch data probe |
 | POST | `/analysis/step-response` | PSstepcalc |
 | POST | `/analysis/throttle-spectrum` | PSthrSpec + PSestimateRPM |
 | POST | `/analysis/time-freq` | PStimeFreqCalc |
@@ -136,6 +137,8 @@ When porting or validating algorithms, always compare against `Refs/PIDscope/src
 | `PSbfFilters.m` | `core/filters.py::bf_filter_coeffs` | pt2 factor `1.553773974`, pt3 `1.961459177` |
 | `PSestimateFreqResponse.m` | `core/chirp.py::estimate_freq_response` | Welch CSD |
 | `PSestimateRPM.m` | `core/rpm.py::estimate_rpm` | |
+| `PSplotRPMOverlay.m` | `core/notch_overlays.py` | RPM + dyn notch harmonic overlays |
+| Motor noise harmonics | `core/motor_noise_harmonics.py` | Spectral Analyzer secondary view |
 | `PSload.m`, `PSimport.m`, `PSgetcsv.m` | `core/parsers/*`, `core/loader.py` | |
 | `PSdebugModeIndices.m` | `core/debug_modes.py` | BF 2025.12+ index shifts |
 | `plot/*.m`, `ui/*.m` | `frontend/src/pages/*` | Rendering is Plotly, not MATLAB |
@@ -157,6 +160,8 @@ When porting or validating algorithms, always compare against `Refs/PIDscope/src
 
 Global state: `frontend/src/store/sessionStore.ts` (Zustand + localStorage for UI prefs).
 
+**Tab persistence:** `PersistentRoutes` keeps visited pages mounted so plots and **Run** results survive tab switches; `Plot` resizes when a tab becomes visible again.
+
 ### Log Viewer (`LogViewerPage`)
 
 | Area | Behavior |
@@ -175,11 +180,14 @@ Global state: `frontend/src/store/sessionStore.ts` (Zustand + localStorage for U
 
 | Area | Behavior |
 |------|----------|
-| **Grid** | 3×2 plots: Roll/Pitch/Yaw × full spectrum and sub-100 Hz. |
-| **Traces** | Per-trace checkboxes (gyro, PID terms, setpoint, **Motor 1–4** RPM). Motor input (`motor_in_*`) is **not** offered here (Log Viewer only). |
-| **Multi-file** | Up to 10 files with overlay colors (`FILE_OVERLAY_COLORS`). |
-| **RPM overlay** | Optional throttle-binned fundamental RPM lines from `POST /analysis/throttle-spectrum`. |
-| **Run** | `POST /analysis/spectrum` with selected files, traces, and session epoch. |
+| **Grid** | Per visible axis (R/P/Y): **Full Spectrum** + secondary panel (**sub-100 Hz** or **Motor Noise**). External Y/X labels on each panel (matches Filter Sim / Freq×Throttle). |
+| **Traces** | Signal checkboxes: gyro, gyro prefilt, D/P/I terms, PID error, setpoint. Motors are **not** spectrum traces — use the motor grid for notch overlays. |
+| **Multi-file** | Up to 10 files; color per trace, dash per file (`FILE_OVERLAY_LINE_DASHES`); legend `F1 · Gyro` when comparing logs. |
+| **Control panel** | Smoothing, **R / P / Y**, **PSD** toggle, Y min/max (defaults −50…20 dB PSD / 0…0.5 amplitude), 2×2 motor grid (M4/M2 / M3/M1), **RPM notch** and **Dyn notch** dropdowns, **RPM est.** + multiplier, secondary view selector. |
+| **RPM notch overlays** | Harmonic center lines on Full Spectrum when PSD on. Sources: `RPM_FILTER` debug, else eRPM; **RPM est.** uses motor-spectrum estimate. Dropdown auto-disables with tooltip when log lacks data (`POST /analysis/overlay-capabilities`). |
+| **Dyn notch overlays** | Filter frequency-response curves from `debug_*` when log `debug_mode == FFT_FREQ` (requires FFT_FREQ blackbox debug). |
+| **Motor Noise** | Bar-style pre/post-filter harmonic averages per axis (`include_motor_noise` on spectrum run). |
+| **Run** | `POST /analysis/spectrum`; overlay and smoothing changes auto re-run when results exist. Per-panel **Save** exports PNG. |
 
 ### Step Response (`StepResponsePage`)
 
@@ -259,7 +267,7 @@ GitHub Actions runs backend pytest, frontend vitest, and production build on pus
 
 ## Testing strategy
 
-1. **Unit tests** — `backend/tests/test_*.py` (51 tests covering spectral, step response, filters, chirp, rpm, traces, API).
+1. **Unit tests** — `backend/tests/test_*.py` (79 tests covering spectral, notch overlays, step response, filters, chirp, rpm, traces, stats, API).
 2. **Golden data** — `backend/tests/fixtures/golden/*.npz` generated by `export_golden.py`. Goal: extend with outputs from Octave running `Refs/PIDscope/tests/` on real logs, assert RMSE ≤ 1e-4.
 3. **Frontend** — `frontend/src/lib/constants.test.ts`, `frontend/src/lib/utils.test.ts` (vitest). Playwright E2E not yet implemented.
 
@@ -275,12 +283,12 @@ Priority items for the next agent (also tracked in `UPDATES.md`):
 2. **Validate algorithms** against Octave/PIDscope on real `.bbl` logs from `Refs/PIDscope/tests/`.
 3. **UI parity** — compare each page to `Refs/ScreenShotsShort/` and `Refs/ScreenShotsLong/`:
    - Log viewer: period/markup tool, debug mode overlay (analysis-window slider and PX4 traces are in place; plot-level epoch drag handles were removed intentionally).
-   - Spectral analyzer: multi-file overlay colors, RPM overlay.
+   - Spectral analyzer: markup tool, remaining dropdown states from reference screenshots; dyn notch needs `FFT_FREQ` debug in log.
    - Freq×Throttle: multi-column grid (one trace per column) like original.
    - Step response: error-bar style peak/latency vs reference screenshots; validate velocity/accel on real PX4 logs.
    - Missing tools: PID slider tool, dedicated Bode/chirp page.
 4. **Implement pure-Python BBL parser** in `core/parsers/bbl_native.py` (replace subprocess dependency).
-5. **Wire save-figure** — `frontend/src/lib/utils.ts::savePlotlyFigure` exists but is not hooked up to UI buttons.
+5. **Wire save-figure** on remaining pages — Spectral Analyzer and Log Viewer (roll panel) have Save; other tools still pending.
 6. **WebSocket progress** — stub exists; connect to long-running spectrogram jobs.
 7. **Licensing** — decide GPL-3.0 (recommended, derivative of PIDscope) before public release.
 8. **Tauri desktop bundle** — optional offline wrapper around built frontend + embedded uvicorn.

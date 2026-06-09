@@ -1,6 +1,7 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { Layout } from './components/Layout';
+import { PersistentRoutes } from './components/PersistentRoutes';
 import { SessionBootstrap } from './components/SessionBootstrap';
 import { ThemeSync } from './components/ThemeSync';
 import { FilterSimPage } from './pages/FilterSimPage';
@@ -12,6 +13,17 @@ import { SpectralAnalyzerPage } from './pages/SpectralAnalyzerPage';
 import { StatsPage } from './pages/StatsPage';
 import { StepResponsePage } from './pages/StepResponsePage';
 
+const ROUTES = [
+  { path: '/', Component: LogViewerPage },
+  { path: '/spectral', Component: SpectralAnalyzerPage },
+  { path: '/step-response', Component: StepResponsePage },
+  { path: '/freq-throttle', Component: FreqThrottlePage },
+  { path: '/freq-time', Component: FreqTimePage },
+  { path: '/filter-sim', Component: FilterSimPage },
+  { path: '/setup-info', Component: SetupInfoPage },
+  { path: '/stats', Component: StatsPage },
+] as const;
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -19,16 +31,7 @@ export default function App() {
       <SessionBootstrap />
       <KeyboardShortcuts />
       <Layout>
-        <Routes>
-          <Route path="/" element={<LogViewerPage />} />
-          <Route path="/spectral" element={<SpectralAnalyzerPage />} />
-          <Route path="/step-response" element={<StepResponsePage />} />
-          <Route path="/freq-throttle" element={<FreqThrottlePage />} />
-          <Route path="/freq-time" element={<FreqTimePage />} />
-          <Route path="/filter-sim" element={<FilterSimPage />} />
-          <Route path="/setup-info" element={<SetupInfoPage />} />
-          <Route path="/stats" element={<StatsPage />} />
-        </Routes>
+        <PersistentRoutes routes={[...ROUTES]} />
       </Layout>
     </BrowserRouter>
   );

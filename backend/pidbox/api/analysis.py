@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pidbox.api.schemas import (
     ChirpRequest,
     FilterSimRequest,
+    OverlayCapabilitiesRequest,
     SetupInfoRequest,
     SpectrumRequest,
     StatsRequest,
@@ -18,6 +19,18 @@ from pidbox.api.schemas import (
 from pidbox.core.chirp import estimate_freq_response, find_chirp_window
 from pidbox.core.filters import simulate_filter_chain
 from pidbox.core.parsers.common import slice_epoch
+from pidbox.core.motor_noise_harmonics import compute_motor_noise_harmonics
+from pidbox.core.notch_overlays import (
+    DYN_NOTCH_MODES,
+    RPM_HARMONIC_MODES,
+    build_dyn_notch_overlay_curves,
+    build_rpm_overlay_curves,
+    describe_overlay_capabilities,
+    extract_dyn_notch_data,
+    merge_overlay_capabilities,
+    resolve_rpm_filter_matrix,
+    spectral_overlay_freq_axis,
+)
 from pidbox.core.rpm import estimate_rpm
 from pidbox.core.spectral import compute_spectrum_grid, psd_2d, throttle_spectrum, time_freq_calc
 from pidbox.core.stats import compute_motor_noise, compute_pid_stats
@@ -127,6 +140,27 @@ def _step_axis_result(
     return result
 
 
+@router.post("/overlay-capabilities")
+def overlay_capabilities(req: OverlayCapabilitiesRequest):
+    try:
+        per_file = []
+        for file_idx in req.file_indices:
+            log, df, _, _ = _get_epoched_log(
+                req.session_id, file_idx, req.log_idx, req.epoch_start, req.epoch_end
+            )
+            per_file.append(
+                describe_overlay_capabilities(
+                    df,
+                    log,
+                    rpm_estimate=req.rpm_estimate,
+                    rpm_multiplier=req.rpm_multiplier,
+                )
+            )
+        return merge_overlay_capabilities(per_file)
+    except KeyError:
+        raise HTTPException(404, "Session not found")
+
+
 @router.post("/spectrum")
 def run_spectrum(req: SpectrumRequest):
     try:
@@ -135,7 +169,7 @@ def run_spectrum(req: SpectrumRequest):
             log, df, _, _ = _get_epoched_log(
                 req.session_id, file_idx, req.log_idx, req.epoch_start, req.epoch_end
             )
-            file_result = {"file_idx": file_idx, "name": log.name, "axes": {}}
+            file_result: dict = {"file_idx": file_idx, "name": log.name, "axes": {}}
             for axis in req.axes:
                 signals = {}
                 for trace in req.traces:
@@ -144,8 +178,75 @@ def run_spectrum(req: SpectrumRequest):
                         signals[trace] = y
                 if signals:
                     file_result["axes"][AXIS_NAMES[axis]] = compute_spectrum_grid(
-                        signals, log.lograte_khz, psd=req.psd, sub100hz=req.sub100hz
+                        signals,
+                        log.lograte_khz,
+                        psd=req.psd,
+                        sub100hz=req.sub100hz,
+                        smooth_factor=req.smooth_factor,
                     )
+
+            fs_hz = log.lograte_khz * 1000
+            y_min = -50.0 if req.psd else 0.0
+            y_max = 20.0 if req.psd else 0.5
+
+            rpm_mat, rpm_source = resolve_rpm_filter_matrix(
+                df,
+                log,
+                rpm_estimate=req.rpm_estimate,
+                rpm_multiplier=req.rpm_multiplier,
+            )
+
+            rpm_harmonics = RPM_HARMONIC_MODES.get(req.rpm_notch_mode, [])
+            freq_axis = spectral_overlay_freq_axis(
+                fs_hz,
+                rpm_mat,
+                req.rpm_motors,
+                rpm_harmonics,
+            )
+            if rpm_mat is not None and rpm_harmonics and req.rpm_motors:
+                file_result["rpm_overlays"] = build_rpm_overlay_curves(
+                    rpm_mat,
+                    freq_axis,
+                    req.rpm_motors,
+                    rpm_harmonics,
+                    y_min,
+                    y_max,
+                )
+            else:
+                file_result["rpm_overlays"] = []
+
+            notch_mat = extract_dyn_notch_data(df, log)
+            dyn_indices = DYN_NOTCH_MODES.get(req.dyn_notch_mode, [])
+            if notch_mat is not None and dyn_indices:
+                file_result["dyn_overlays"] = build_dyn_notch_overlay_curves(
+                    notch_mat,
+                    freq_axis,
+                    dyn_indices,
+                    y_max,
+                    fs_hz,
+                )
+            else:
+                file_result["dyn_overlays"] = []
+
+            file_result["overlay_meta"] = {
+                "rpm_source": rpm_source,
+                "rpm_from_log": rpm_source == "rpm_filter_debug",
+                "has_dyn_notch": notch_mat is not None,
+                "debug_mode": log.debug_mode,
+                "fft_freq_debug_mode": log.debug_indices.get("FFT_FREQ", 17),
+                "dyn_overlay_count": len(file_result["dyn_overlays"]),
+            }
+
+            if req.include_motor_noise:
+                file_result["motor_noise"] = compute_motor_noise_harmonics(
+                    df,
+                    log,
+                    rpm_estimate=req.rpm_estimate,
+                    rpm_multiplier=req.rpm_multiplier,
+                )
+            else:
+                file_result["motor_noise"] = {}
+
             results.append(file_result)
     except KeyError:
         raise HTTPException(404, "Session not found")
@@ -276,7 +377,7 @@ def run_stats(req: StatsRequest):
     except KeyError:
         raise HTTPException(404, "Session not found")
 
-    return {"stats": stats, "motor_noise": motor_noise}
+    return _to_json({"stats": stats, "motor_noise": motor_noise})
 
 
 @router.post("/chirp")

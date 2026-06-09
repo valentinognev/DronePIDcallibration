@@ -4,13 +4,14 @@ import { api, type StepAxisResult, type StepAxisStats, type StepResponseResult }
 import {
   AXIS_LABELS,
   FILE_OVERLAY_COLORS,
-  STEP_SIGNAL_BAR_PATTERNS,
   STEP_SIGNAL_LINE_STYLES,
+  INTERACTIVE_PLOT_CONFIG,
+  STEP_SIGNAL_MARKER_SYMBOLS,
   STEP_SIGNAL_MODES,
-  stepSignalBarMarker,
+  stepSignalPointMarker,
   type StepSignalMode,
 } from '../lib/constants';
-import { useAppTheme, usePlotLayoutBase } from '../hooks/useAppTheme';
+import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
 const AXES = ['roll', 'pitch', 'yaw'] as const;
@@ -44,7 +45,6 @@ function traceName(
 }
 
 export function StepResponsePage() {
-  const theme = useAppTheme();
   const plotLayoutBase = usePlotLayoutBase();
   const { sessionId, files } = useSessionStore();
   const [results, setResults] = useState<StepResponseResult[]>([]);
@@ -137,36 +137,38 @@ export function StepResponsePage() {
             }
           }
 
-          const barX = fileStats.map((_, i) => i + 1);
-          const barMarker = stepSignalBarMarker(fileStats, theme);
-          const barXaxis = {
+          const pointX = fileStats.map((_, i) => i + 1);
+          const pointMarker = stepSignalPointMarker(fileStats);
+          const pointXaxis = {
             ...plotLayoutBase.xaxis,
             showticklabels: false,
             showgrid: false,
           };
-          const barAxis = {
-            xaxis: barXaxis,
+          const pointAxis = {
+            xaxis: pointXaxis,
             yaxis: {
               ...plotLayoutBase.yaxis,
               showgrid: true,
             },
           };
-          const peakBars: Plotly.Data = {
-            type: 'bar',
-            x: barX,
+          const peakPoints: Plotly.Data = {
+            type: 'scatter',
+            mode: 'markers',
+            x: pointX,
             y: fileStats.map((f) => f.stats.peak_mean ?? 0),
-            marker: barMarker,
+            marker: pointMarker,
             hovertext: fileStats.map(
               (f) => `${signalLabel(f.signal)} — ${f.name}`,
             ),
             hoverinfo: 'y+text',
             name: 'Peak',
           };
-          const latencyBars: Plotly.Data = {
-            type: 'bar',
-            x: barX,
+          const latencyPoints: Plotly.Data = {
+            type: 'scatter',
+            mode: 'markers',
+            x: pointX,
             y: fileStats.map((f) => f.stats.latency_mean_ms ?? 0),
-            marker: barMarker,
+            marker: pointMarker,
             hovertext: fileStats.map(
               (f) => `${signalLabel(f.signal)} — ${f.name}`,
             ),
@@ -181,7 +183,7 @@ export function StepResponsePage() {
           const signalSummary = selectedSignals.map((s) => signalLabel(s)).join(', ');
 
           return (
-            <div key={axis} className="grid grid-cols-[3fr_1fr] gap-2 min-h-0 w-full">
+            <div key={axis} className="grid grid-cols-[3fr_1fr_1fr] gap-2 min-h-0 w-full">
               <div className="min-w-0">
                 <Plot
                   key={`${axis}-${traces.map((t) => t.name).join('|')}`}
@@ -195,69 +197,64 @@ export function StepResponsePage() {
                     xaxis: { ...plotLayoutBase.xaxis, title: 'Time (ms)' },
                     yaxis: { ...plotLayoutBase.yaxis, title: 'Response', range: [0, 1.5] },
                   }}
-                  config={{ responsive: true }}
+                  config={INTERACTIVE_PLOT_CONFIG}
                   style={{ width: '100%' }}
                   useResizeHandler
                 />
               </div>
-              <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0 min-h-0">
                 <h4 className="font-semibold text-xs shrink-0">{axisName} — Peak</h4>
                 <Plot
-                  data={[peakBars]}
+                  data={[peakPoints]}
                   layout={{
                     ...plotLayoutBase,
                     height: 120,
                     margin: { l: 40, r: 4, t: 10, b: 8 },
-                    barmode: 'group',
-                    ...barAxis,
-                    yaxis: { ...barAxis.yaxis, range: [0, 1.5] },
+                    ...pointAxis,
+                    yaxis: { ...pointAxis.yaxis, range: [0, 1.5] },
                     showlegend: false,
                   }}
-                  config={{ responsive: true, displayModeBar: false }}
+                  config={INTERACTIVE_PLOT_CONFIG}
                   style={{ width: '100%' }}
                   useResizeHandler
                 />
                 <h4 className="font-semibold text-xs shrink-0">{axisName} — Latency (ms)</h4>
                 <Plot
-                  data={[latencyBars]}
+                  data={[latencyPoints]}
                   layout={{
                     ...plotLayoutBase,
                     height: 120,
                     margin: { l: 40, r: 4, t: 10, b: 8 },
-                    barmode: 'group',
-                    ...barAxis,
+                    ...pointAxis,
                     showlegend: false,
                   }}
-                  config={{ responsive: true, displayModeBar: false }}
+                  config={INTERACTIVE_PLOT_CONFIG}
                   style={{ width: '100%' }}
                   useResizeHandler
                 />
-                <div className="panel text-xs overflow-auto flex-1 min-h-0">
-                  <h4 className="font-semibold mb-1">{axisName} — Stats</h4>
-                  {fileStats.map(({ signal, name, fi, stats, pidf }) => (
-                    <div
-                      key={`${fi}-${signal}`}
-                      className="mb-1"
-                      style={{ color: FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length] }}
-                    >
-                      <p>
-                        {signalLabel(signal)}
-                        {multiFile ? ` — ${name}` : ''}
-                        <span className="text-[var(--text-secondary)]">
-                          {' '}
-                          ({STEP_SIGNAL_LINE_STYLES[signal].dash}
-                          {STEP_SIGNAL_BAR_PATTERNS[signal]
-                            ? `, bar ${STEP_SIGNAL_BAR_PATTERNS[signal]}`
-                            : ', bar solid'}
-                          )
-                        </span>
-                      </p>
-                      {pidf && <p>{pidf}</p>}
-                      <p>Peak: {stats.peak_mean?.toFixed(3)} ± {stats.peak_std?.toFixed(3)}</p>
-                      <p>Latency: {stats.latency_mean_ms?.toFixed(1)} ms · n={stats.n}</p>
-                    </div>
-                  ))}
-                </div>
+              </div>
+              <div className="panel text-xs overflow-auto min-w-0 min-h-0 self-stretch">
+                <h4 className="font-semibold mb-1 shrink-0">{axisName} — Stats</h4>
+                {fileStats.map(({ signal, name, fi, stats, pidf }) => (
+                  <div
+                    key={`${fi}-${signal}`}
+                    className="mb-1"
+                    style={{ color: FILE_OVERLAY_COLORS[fi % FILE_OVERLAY_COLORS.length] }}
+                  >
+                    <p>
+                      {signalLabel(signal)}
+                      {multiFile ? ` — ${name}` : ''}
+                      <span className="text-[var(--text-secondary)]">
+                        {' '}
+                        ({STEP_SIGNAL_LINE_STYLES[signal].dash},{' '}
+                        {STEP_SIGNAL_MARKER_SYMBOLS[signal]})
+                      </span>
+                    </p>
+                    {pidf && <p>{pidf}</p>}
+                    <p>Peak: {stats.peak_mean?.toFixed(3)} ± {stats.peak_std?.toFixed(3)}</p>
+                    <p>Latency: {stats.latency_mean_ms?.toFixed(1)} ms · n={stats.n}</p>
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -277,11 +274,8 @@ export function StepResponsePage() {
               />
               {label}
               <span className="text-[var(--text-secondary)] text-xs">
-                ({STEP_SIGNAL_LINE_STYLES[key].dash}
-                {STEP_SIGNAL_BAR_PATTERNS[key]
-                  ? `, bar ${STEP_SIGNAL_BAR_PATTERNS[key]}`
-                  : ', bar solid'}
-                )
+                ({STEP_SIGNAL_LINE_STYLES[key].dash},{' '}
+                {STEP_SIGNAL_MARKER_SYMBOLS[key]})
               </span>
             </label>
           ))}

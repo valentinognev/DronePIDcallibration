@@ -93,7 +93,7 @@ export function tracePanelTitle(traceKey: string, axis: AxisKey): string {
 
 export const TRACE_LABELS: Record<string, string> = {
   gyro: 'Gyro',
-  gyro_pf: 'Gyro(pf)',
+  gyro_pf: 'Gyro prefilt',
   pterm: 'P-term',
   iterm: 'I-term',
   dterm_pf: 'D-term(pf)',
@@ -186,35 +186,23 @@ export const STEP_SIGNAL_LINE_STYLES: Record<
   accel: { dash: 'dot', width: 1.5 },
 };
 
-/** Bar hatch pattern per signal (empty = solid fill, matches line-style family). */
-export const STEP_SIGNAL_BAR_PATTERNS: Record<
-  StepSignalMode,
-  '' | '/' | 'x' | '|'
-> = {
-  rate: '',
-  attitude: '/',
-  velocity: 'x',
-  accel: '|',
+/** Marker shape per signal (matches line-style family on step-response plots). */
+export const STEP_SIGNAL_MARKER_SYMBOLS: Record<StepSignalMode, string> = {
+  rate: 'circle',
+  attitude: 'square',
+  velocity: 'diamond',
+  accel: 'cross',
 };
 
-export function stepSignalBarMarker(
+export function stepSignalPointMarker(
   rows: Array<{ signal: StepSignalMode; fi: number }>,
-  theme: AppTheme,
-): { color: string[]; pattern: Plotly.Pattern } {
-  const bg = theme === 'dark' ? '#1a1a1a' : '#f5f5f5';
-  const colors = rows.map(
-    (row) => FILE_OVERLAY_COLORS[row.fi % FILE_OVERLAY_COLORS.length],
-  );
-  const shapes = rows.map((row) => STEP_SIGNAL_BAR_PATTERNS[row.signal]);
+): { color: string[]; size: number; symbol: string[] } {
   return {
-    color: colors,
-    pattern: {
-      shape: shapes,
-      fgcolor: colors,
-      bgcolor: rows.map(() => bg),
-      size: 8,
-      solidity: shapes.map((shape) => (shape === '' ? 1 : 0.35)),
-    },
+    color: rows.map(
+      (row) => FILE_OVERLAY_COLORS[row.fi % FILE_OVERLAY_COLORS.length],
+    ),
+    size: 10,
+    symbol: rows.map((row) => STEP_SIGNAL_MARKER_SYMBOLS[row.signal]),
   };
 }
 
@@ -259,6 +247,29 @@ export function getTraceColor(key: string, theme: AppTheme): string {
 }
 
 export const COLORMAPS = ['Hot', 'Jet', 'Viridis', 'Plasma', 'Electric'] as const;
+
+/** Plotly mode bar — pan, zoom, box zoom, reset, download image. */
+export const INTERACTIVE_PLOT_CONFIG: Partial<Plotly.Config> = {
+  responsive: true,
+  displayModeBar: true,
+  scrollZoom: true,
+  displaylogo: false,
+  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+};
+
+/** Line dash per file index for multi-file overlays. */
+export const FILE_OVERLAY_LINE_DASHES = [
+  'solid',
+  'dash',
+  'dashdot',
+  'dot',
+  'longdash',
+  'longdashdot',
+  'solid',
+  'dash',
+  'dashdot',
+  'dot',
+] as const;
 
 /** Distinct colors for multi-file overlays (spectral, step response, etc.) */
 export const FILE_OVERLAY_COLORS = [

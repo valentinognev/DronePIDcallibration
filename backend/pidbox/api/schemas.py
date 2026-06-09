@@ -21,6 +21,7 @@ class FileInfo(BaseModel):
     original_name: str
     log_count: int
     log_names: list[str]
+    parse_warnings: list[str] = Field(default_factory=list)
 
 
 class EpochUpdate(BaseModel):
@@ -40,6 +41,16 @@ class TraceRequest(BaseModel):
     epoch_end: float | None = None
 
 
+class OverlayCapabilitiesRequest(BaseModel):
+    session_id: str
+    file_indices: list[int] = Field(default=[0])
+    log_idx: int = 0
+    rpm_estimate: bool = False
+    rpm_multiplier: float = Field(default=2.1, gt=0)
+    epoch_start: float | None = None
+    epoch_end: float | None = None
+
+
 class SpectrumRequest(BaseModel):
     session_id: str
     file_indices: list[int] = Field(default=[0])
@@ -48,6 +59,13 @@ class SpectrumRequest(BaseModel):
     traces: list[str] = Field(default=["gyro", "gyro_pf"])
     psd: bool = True
     sub100hz: bool = True
+    smooth_factor: int = Field(default=1, ge=0, le=5)
+    rpm_notch_mode: str = "off"
+    dyn_notch_mode: str = "off"
+    rpm_motors: list[int] = Field(default=[0, 1, 2, 3])
+    rpm_estimate: bool = False
+    rpm_multiplier: float = Field(default=2.1, gt=0)
+    include_motor_noise: bool = False
     epoch_start: float | None = None
     epoch_end: float | None = None
 

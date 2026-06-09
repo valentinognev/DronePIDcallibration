@@ -37,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         <span className="text-xs text-[var(--text-secondary)]">v0.1.19</span>
       </header>
-      <main className="flex-1 p-4 overflow-auto">{children}</main>
+      <main className="flex flex-1 flex-col min-h-0 min-w-0 p-4 overflow-auto">{children}</main>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import Plot from '../components/Plot';
 import { AxisSelector } from '../components/AxisSelector';
 import { ColormapPicker } from '../components/ColormapPicker';
 import { api } from '../lib/api';
-import { AXIS_LABELS, type AxisKey, tracePanelTitle } from '../lib/constants';
+import { AXIS_LABELS, INTERACTIVE_PLOT_CONFIG, type AxisKey, tracePanelTitle } from '../lib/constants';
 import { usePlotLayoutBase } from '../hooks/useAppTheme';
 import { useSessionStore } from '../store/sessionStore';
 
@@ -161,7 +161,7 @@ export function FreqThrottlePage() {
                         xaxis: { ...plotLayoutBase.xaxis, title: '' },
                         yaxis: { ...plotLayoutBase.yaxis, title: '' },
                       }}
-                      config={{ responsive: true, displayModeBar: false }}
+                      config={INTERACTIVE_PLOT_CONFIG}
                       style={{ width: plotWidth, height: plotHeight }}
                       useResizeHandler
                     />

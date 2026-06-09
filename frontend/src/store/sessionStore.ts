@@ -29,6 +29,7 @@ interface SessionState {
   traceData: TraceData | null;
   loading: boolean;
   error: string | null;
+  parseWarnings: string[];
   settings: AppSettings;
   visibleTraces: string[];
   firmwareOptions: FirmwareOption[];
@@ -130,6 +131,7 @@ export const useSessionStore = create<SessionState>()(
       traceData: null,
       loading: false,
       error: null,
+      parseWarnings: [],
       settings: {
         firmware: 'betaflight',
         theme: 'dark',
@@ -239,14 +241,22 @@ export const useSessionStore = create<SessionState>()(
         }
 
         const files = Array.from(fileList);
-        set({ loading: true, error: null });
+        set({ loading: true, error: null, parseWarnings: [] });
         try {
           const sessionId = await ensureBackendSession(get, set);
+          const warnings: string[] = [];
           for (const file of files) {
-            await api.uploadFile(sessionId, file);
+            const info = await api.uploadFile(sessionId, file);
+            for (const msg of info.parse_warnings ?? []) {
+              if (!warnings.includes(msg)) warnings.push(msg);
+            }
           }
           const session = await api.getSession(sessionId);
-          set({ files: session.files, selectedFileIdx: session.files.length - 1 });
+          set({
+            files: session.files,
+            selectedFileIdx: session.files.length - 1,
+            parseWarnings: warnings,
+          });
           await get().refreshTraces();
         } catch (e) {
           set({ error: String(e) });
@@ -344,6 +354,7 @@ export const useSessionStore = create<SessionState>()(
           selectedFileIdx: 0,
           selectedLogIdx: 0,
           error: null,
+          parseWarnings: [],
         }),
     }),
     {

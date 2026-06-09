@@ -105,6 +105,40 @@ def test_empty_epoch_slice_returns_empty_panels():
     assert data["metadata"]["name"] == "test.csv"
 
 
+def test_gyro_pf_uses_debug_not_axis_dpf():
+    n = 100
+    gyro = np.sin(np.linspace(0, 20, n))
+    prefilt = gyro * 2.0 + 0.5
+    dpf = np.gradient(gyro)
+    df = pd.DataFrame(
+        {
+            "time_us": np.arange(n) * 250,
+            "gyroADC_0_": gyro,
+            "debug_0_": prefilt,
+            "axisDpf_0_": dpf,
+        }
+    )
+    y = get_trace(df, "gyro_pf", 0)
+    assert y is not None
+    np.testing.assert_allclose(y, prefilt)
+
+
+def test_gyro_pf_prefers_gyro_unfilt_when_debug_is_flat():
+    n = 100
+    prefilt = np.sin(np.linspace(0, 20, n))
+    df = pd.DataFrame(
+        {
+            "time_us": np.arange(n) * 250,
+            "gyroADC_0_": prefilt * 0.5,
+            "debug_0_": np.zeros(n),
+            "gyroUnfilt_0_": prefilt,
+        }
+    )
+    y = get_trace(df, "gyro_pf", 0)
+    assert y is not None
+    np.testing.assert_allclose(y, prefilt)
+
+
 def test_px4_like_traces_available_and_extracted():
     n = 200
     df = pd.DataFrame(

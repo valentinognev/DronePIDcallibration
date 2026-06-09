@@ -19,7 +19,7 @@ function visiblePanelTraces(
 
 export function LogViewerPage() {
   const {
-    sessionId, files, traceData, loading, error, settings, visibleTraces,
+    sessionId, files, traceData, loading, error, parseWarnings, settings, visibleTraces,
     uploadFiles, refreshTraces, setSettings, setFirmware, toggleTrace,
     selectedFileIdx, setSelectedFile, setEpoch, reset, initSession,
     firmwareOptions,
@@ -81,14 +81,14 @@ export function LogViewerPage() {
   );
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-80px)]">
+    <div className="flex flex-1 min-h-0 min-w-0 w-full gap-4">
       <TraceTogglePanel
         traces={available}
         visible={visibleTraces}
         onToggle={toggleTrace}
       />
 
-      <div className="flex-1 flex flex-col min-h-0 gap-2">
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 gap-2">
         {files.length === 0 ? (
           <FileDropzone onFiles={uploadFiles} />
         ) : (
@@ -168,6 +168,16 @@ export function LogViewerPage() {
         )}
         {loading && <p className="text-sm text-blue-400 shrink-0">Loading...</p>}
         {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
+        {parseWarnings.length > 0 && (
+          <div className="text-sm text-amber-400 shrink-0 space-y-1">
+            <p className="font-medium">Some log data was not available in this file:</p>
+            <ul className="list-disc list-inside text-xs space-y-0.5">
+              {parseWarnings.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="panel w-56 shrink-0 space-y-3">
