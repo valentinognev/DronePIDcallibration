@@ -156,8 +156,23 @@ export function SpectralAnalyzerPage() {
     ? DYN_NOTCH_ENABLED_TITLE
     : (overlayCaps?.dyn_notch.message ?? 'Load a log file first.');
 
+  const fileIdsKey = files.map((f) => f.file_id).join(',');
+
   useEffect(() => {
-    if (!sessionId || selectedFiles.length === 0) {
+    if (files.length === 0) return;
+    setSelectedFiles((prev) => {
+      const valid = prev.filter((i) => i >= 0 && i < files.length);
+      return valid.length > 0 ? valid : [0];
+    });
+  }, [fileIdsKey, files.length]);
+
+  useEffect(() => {
+    if (!sessionId || files.length === 0) {
+      setOverlayCaps(null);
+      return;
+    }
+    const fileIndices = selectedFiles.filter((i) => i >= 0 && i < files.length);
+    if (fileIndices.length === 0) {
       setOverlayCaps(null);
       return;
     }
@@ -165,7 +180,7 @@ export function SpectralAnalyzerPage() {
     void api
       .runOverlayCapabilities({
         session_id: sessionId,
-        file_indices: selectedFiles,
+        file_indices: fileIndices,
         rpm_estimate: rpmEst,
         rpm_multiplier: rpmMultiplier,
       })
@@ -178,7 +193,7 @@ export function SpectralAnalyzerPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, selectedFiles, rpmEst, rpmMultiplier]);
+  }, [sessionId, fileIdsKey, files.length, selectedFiles, rpmEst, rpmMultiplier]);
 
   useEffect(() => {
     if (!rpmNotchAvailable && rpmNotchMode !== 'off') {

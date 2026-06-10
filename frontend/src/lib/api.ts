@@ -171,6 +171,119 @@ export const api = {
     request<Record<string, unknown>>('/analysis/time-freq', { method: 'POST', body: JSON.stringify(body) }),
 
   getSettings: () => request<Record<string, unknown>>('/settings'),
+
   saveSettings: (settings: Record<string, unknown>) =>
     request('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+
+  sysIdCapabilities: (body: { session_id: string; file_idx?: number; log_idx?: number }) =>
+    request<SysIdCapabilities>('/analysis/sysid/capabilities', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  sysIdDefaults: (body: { session_id: string; file_idx?: number; log_idx?: number }) =>
+    request<SysIdDefaults>('/analysis/sysid/defaults', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  sysIdPreview: (body: SysIdPreviewRequest) =>
+    request<SysIdPreviewResult>('/analysis/sysid/preview', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  sysIdRun: (body: SysIdRunRequest) =>
+    request<SysIdRunResult>('/analysis/sysid/run', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
+
+export interface SysIdModel {
+  mass: number;
+  gravity: number;
+  inertia_ratio: number;
+  rotor_positions: number[][];
+  rotor_thrust_directions: number[][];
+  rotor_torque_directions: number[][];
+}
+
+export interface SysIdTimeframe {
+  file_idx: number;
+  start: number;
+  end: number;
+}
+
+export interface SysIdCapabilities {
+  ready: boolean;
+  missing: string[];
+  motor_source: string | null;
+  frame_convention: string;
+  accel_unit: string;
+}
+
+export interface SysIdDefaults {
+  mass: number | null;
+  rotor_positions: number[][] | null;
+  rotor_thrust_directions: number[][] | null;
+  rotor_torque_directions: number[][] | null;
+  frame_convention: string;
+}
+
+export interface SysIdPreviewFlight {
+  name: string;
+  motor_source?: string;
+  frame_convention?: string;
+  time_range: [number, number];
+  metrics: {
+    timestamps: number[];
+    motors: Record<string, number[]>;
+    thrust_z: { timestamps: number[]; values: number[] };
+    torque_x: { timestamps: number[]; values: number[] };
+    torque_y: { timestamps: number[]; values: number[] };
+    torque_z: { timestamps: number[]; values: number[] };
+  };
+}
+
+export interface SysIdPreviewResult {
+  flights: SysIdPreviewFlight[];
+}
+
+export interface SysIdPreviewRequest {
+  session_id: string;
+  file_indices: number[];
+  log_idx?: number;
+  model: SysIdModel;
+}
+
+export interface SysIdRunRequest {
+  session_id: string;
+  file_indices: number[];
+  log_idx?: number;
+  model: SysIdModel;
+  exponents?: number[];
+  separate_motors?: boolean;
+  timeframes_thrust: SysIdTimeframe[];
+  timeframes_inertia_rp: SysIdTimeframe[];
+  timeframes_inertia_yaw: SysIdTimeframe[];
+  t_m_steps?: number;
+  t_m_min?: number;
+  t_m_max?: number;
+}
+
+export interface SysIdRunResult {
+  parameters: {
+    t_m: number;
+    k_f: number[][];
+    k_f_mean: number[];
+    thrust_rmse: number;
+    i_xx: number;
+    i_yy: number;
+    i_zz: number;
+    k_tau: number;
+    mass: number;
+    inertia_ratio: number;
+  };
+  plots: Record<string, unknown>;
+}

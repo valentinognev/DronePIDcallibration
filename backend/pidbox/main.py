@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from pidbox.api import analysis, sessions, settings, ws
+from pidbox.api import analysis, sessions, settings, sysid, ws
 from pidbox.session import session_manager
 
 
@@ -19,7 +19,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="PIDToolBox API",
-    version="0.1.29",
+    version="0.1.33",
     description="Python backend for multirotor PID tuning log analysis",
     lifespan=lifespan,
 )
@@ -34,6 +34,7 @@ app.add_middleware(
 
 app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
+app.include_router(sysid.router, prefix="/api/analysis/sysid", tags=["sysid"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(ws.router, prefix="/api/ws", tags=["websocket"])
 

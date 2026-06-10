@@ -12,6 +12,7 @@ import { SetupInfoPage } from './pages/SetupInfoPage';
 import { SpectralAnalyzerPage } from './pages/SpectralAnalyzerPage';
 import { StatsPage } from './pages/StatsPage';
 import { StepResponsePage } from './pages/StepResponsePage';
+import { SysIdPage } from './pages/SysIdPage';
 
 const ROUTES = [
   { path: '/', Component: LogViewerPage },
@@ -22,6 +23,7 @@ const ROUTES = [
   { path: '/filter-sim', Component: FilterSimPage },
   { path: '/setup-info', Component: SetupInfoPage },
   { path: '/stats', Component: StatsPage },
+  { path: '/sysid', Component: SysIdPage },
 ] as const;
 
 export default function App() {

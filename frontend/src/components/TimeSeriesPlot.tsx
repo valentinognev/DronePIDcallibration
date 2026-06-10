@@ -18,6 +18,7 @@ interface Props {
   traces: Trace[];
   yLabel: string;
   yLabel2?: string;
+  xRange?: [number, number];
   yRange?: [number, number];
   dualAxis?: boolean;
   lineWidth?: number;
@@ -31,6 +32,7 @@ export function TimeSeriesPlot({
   traces,
   yLabel,
   yLabel2,
+  xRange,
   yRange,
   dualAxis = false,
   lineWidth = 2,
@@ -76,7 +78,11 @@ export function TimeSeriesPlot({
           title: { text: title, font: { size: 12 } },
           height,
           showlegend: showLegend,
-          xaxis: { ...plotLayoutBase.xaxis, title: 'Time (s)' },
+          xaxis: {
+            ...plotLayoutBase.xaxis,
+            title: 'Time (s)',
+            ...(xRange ? { range: xRange } : {}),
+          },
           yaxis: {
             ...plotLayoutBase.yaxis,
             title: yLabel,

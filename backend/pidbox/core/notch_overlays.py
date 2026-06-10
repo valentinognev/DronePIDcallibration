@@ -135,7 +135,7 @@ def resolve_rpm_filter_matrix(
     """
     Resolve per-motor fundamental Hz for notch overlays.
     When rpm_estimate is set: motor-spectrum estimate (ignores logged RPM channels).
-    Otherwise: RPM_FILTER debug → eRPM telemetry.
+    Otherwise: RPM_FILTER debug → eRPM telemetry → motor-spectrum estimate.
     """
     if rpm_estimate:
         rpm_mat = estimate_rpm_filter_from_motors(df, log, rpm_multiplier)
@@ -148,6 +148,10 @@ def resolve_rpm_filter_matrix(
     rpm_mat = extract_erpm_hz_matrix(df, log)
     if rpm_mat is not None:
         return rpm_mat, "erpm"
+
+    rpm_mat = estimate_rpm_filter_from_motors(df, log, rpm_multiplier)
+    if rpm_mat is not None:
+        return rpm_mat, "estimated"
 
     return None, "none"
 
@@ -204,8 +208,8 @@ def describe_overlay_capabilities(
         rpm = {
             "available": False,
             "message": (
-                "No RPM notch data in log (need RPM_FILTER debug or eRPM telemetry). "
-                "Enable RPM est. to estimate from motor output."
+                "No RPM notch data in log (need RPM_FILTER debug, eRPM telemetry, "
+                "or motor/throttle output for estimation)."
             ),
         }
 

@@ -2,8 +2,8 @@
 
 A modern web reimplementation of [PIDtoolbox](https://github.com/bw1129/PIDtoolbox) / [PIDscope](Refs/PIDscope/) for multirotor PID tuning from blackbox flight logs. The mathematical backend is **Python** (FastAPI, NumPy, SciPy); the UI is **React + TypeScript + Tailwind + Plotly.js**.
 
-**Current version:** `0.1.30`  
-**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: Spectral Analyzer RPM/dynamic-notch overlays and PIDscope-style control panel; persistent tab state (`PersistentRoutes`); PX4 ULOG motors and parse warnings (see [UPDATES.md](UPDATES.md)).
+**Current version:** `0.1.33`  
+**Status:** Functional prototype with all major analysis tools scaffolded; UI and algorithm parity with the original MATLAB app is incomplete in places (see [Known gaps](#known-gaps--next-work) below). Recent work: **System ID** tab (quadrotor parameter estimation from flight logs); Spectral Analyzer RPM/dynamic-notch overlays; persistent tab state (`PersistentRoutes`); PX4 ULOG motors (see [UPDATES.md](UPDATES.md)).
 
 ---
 
@@ -113,6 +113,10 @@ Base URL: `http://localhost:8000/api`
 | POST | `/analysis/stats` | PSplotStats (simplified) |
 | POST | `/analysis/chirp` | PSestimateFreqResponse |
 | POST | `/analysis/setup-diff` | PSdispSetupInfo diff view |
+| POST | `/analysis/sysid/capabilities` | Motor/accel/gyro column probe |
+| POST | `/analysis/sysid/defaults` | Mass + rotor geometry from log |
+| POST | `/analysis/sysid/preview` | Excitation metrics per file |
+| POST | `/analysis/sysid/run` | Full estimation pipeline |
 
 ### Settings
 
@@ -141,6 +145,7 @@ When porting or validating algorithms, always compare against `Refs/PIDscope/src
 | Motor noise harmonics | `core/motor_noise_harmonics.py` | Spectral Analyzer secondary view |
 | `PSload.m`, `PSimport.m`, `PSgetcsv.m` | `core/parsers/*`, `core/loader.py` | |
 | `PSdebugModeIndices.m` | `core/debug_modes.py` | BF 2025.12+ index shifts |
+| Berkeley `sysid.py` | `core/sysid/*` | Data-driven quadrotor ID (not PIDscope); see [System ID](#system-id-sysidpage) |
 | `plot/*.m`, `ui/*.m` | `frontend/src/pages/*` | Rendering is Plotly, not MATLAB |
 
 ---
@@ -157,6 +162,7 @@ When porting or validating algorithms, always compare against `Refs/PIDscope/src
 | `/filter-sim` | `FilterSimPage` | Filter Sim |
 | `/setup-info` | `SetupInfoPage` | Setup Info diff |
 | `/stats` | `StatsPage` | PID Stats |
+| `/sysid` | `SysIdPage` | System ID (quadrotor parameter estimation) |
 
 Global state: `frontend/src/store/sessionStore.ts` (Zustand + localStorage for UI prefs).
 
@@ -199,6 +205,22 @@ Global state: `frontend/src/store/sessionStore.ts` (Zustand + localStorage for U
 | **Multi-file** | Up to 10 files; legend names include file when comparing logs. |
 | **Backend** | `POST /analysis/step-response` with `signals[]`. Accel deconvolution uses **velocity setpoint** as input; per-signal `min_input` and QC tuned for m/s and m/s² scales. |
 | **Run** | Click **Run** after changing signal modes or files; file checkboxes filter displayed results immediately. |
+
+### System ID (`SysIdPage`)
+
+Quadrotor parameter estimation ported from the Berkeley reference workflow ([sysid.tools](https://sysid.tools)). Algorithms follow **Data-Driven System Identification of Quadrotors Subject to Motor Delays** (cited in the UI summary).
+
+| Area | Behavior |
+|------|----------|
+| **Reference** | Motor delay + thrust / inertia / yaw torque identification from excitation logs; uses parsed session columns (`accel_*`, `gyroADC_*`, motor commands) — no separate log loader. |
+| **Phases** | Three panels: thrust/motor model, roll–pitch inertia, yaw torque — each with file dropdown, **Enabled** toggle, epoch range slider, and excitation preview plot. |
+| **Sidebar** | Geometry source log, mass, inertia ratio, 4× rotor pos/thrust/torque (FLU), **Run estimation**. |
+| **Results summary** | Below **Run estimation**: `Tm`, thrust RMSE, **d** (`T = d·(ω₁²+ω₂²+ω₃²+ω₄²)`), hover thrust / Σωᵢ², `Ixx`/`Iyy`/`Izz`, `Kτ`, model inputs, paper reference. |
+| **Diagnostic plots** | Tm search curve; **thrust vs ω²** (x = Σωᵢ², fit `T = d·Σωᵢ²`); thrust fit; hover-throttle histogram; inertia scatter; yaw `Kτ`. Result plots use static Plotly mode for scroll performance. |
+
+**ω₁…ω₄ in the thrust model:** per-motor **normalized motor commands** after a first-order EMA with estimated `Tm` (`core/sysid/dynamics.py` → `rpms`). Sources: `motor_in_*` (0–1), `motor_*` PWM %, or normalized `eRPM_*`. These are **not** gyro body rates (`omega` from `gyroADC_*` is used only for inertia/yaw steps).
+
+**Backend modules:** `core/sysid/log_adapter.py`, `preprocess.py`, `dynamics.py`, `estimators.py`, `excitation.py`, `pipeline.py`, `rotor_model.py`. Tests: `backend/tests/test_sysid.py`.
 
 ---
 

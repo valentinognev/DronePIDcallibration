@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
   min: number;
@@ -22,6 +22,34 @@ function clamp(value: number, lo: number, hi: number): number {
 
 function formatTime(seconds: number): string {
   return `${seconds.toFixed(1)} s`;
+}
+
+function computeTimeTicks(min: number, max: number, maxTicks = 8): number[] {
+  const span = max - min;
+  if (span <= 0) return [min];
+
+  const rawStep = span / maxTicks;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  let niceStep: number;
+  if (normalized <= 1) niceStep = magnitude;
+  else if (normalized <= 2) niceStep = 2 * magnitude;
+  else if (normalized <= 5) niceStep = 5 * magnitude;
+  else niceStep = 10 * magnitude;
+
+  const ticks: number[] = [];
+  const start = Math.ceil(min / niceStep) * niceStep;
+  for (let t = start; t <= max + niceStep * 0.001; t += niceStep) {
+    ticks.push(roundTime(t));
+  }
+  if (ticks.length === 0 || ticks[0] > min + 0.05) {
+    ticks.unshift(roundTime(min));
+  }
+  const last = ticks[ticks.length - 1];
+  if (last < max - 0.05) {
+    ticks.push(roundTime(max));
+  }
+  return ticks;
 }
 
 export function EpochRangeSlider({ min, max, start, end, onCommit, disabled }: Props) {
@@ -103,6 +131,7 @@ export function EpochRangeSlider({ min, max, start, end, onCommit, disabled }: P
 
   const startPct = toPct(localStart);
   const endPct = toPct(localEnd);
+  const axisTicks = useMemo(() => computeTimeTicks(min, max), [min, max]);
 
   return (
     <div className={`panel py-2 px-3 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -183,9 +212,43 @@ export function EpochRangeSlider({ min, max, start, end, onCommit, disabled }: P
         })}
       </div>
 
-      <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
-        <span>{formatTime(min)}</span>
-        <span>{formatTime(max)}</span>
+      <div className="relative mt-1 h-5">
+        {axisTicks.map((tick) => {
+          const pct = toPct(tick);
+          const isHandle =
+            Math.abs(tick - localStart) < 0.05 || Math.abs(tick - localEnd) < 0.05;
+          if (isHandle) return null;
+          return (
+            <span
+              key={tick}
+              className="absolute top-0 -translate-x-1/2 text-[10px] text-[var(--text-secondary)] whitespace-nowrap"
+              style={{ left: `${pct}%` }}
+            >
+              <span
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-0.5 w-px h-1.5"
+                style={{ background: 'var(--text-secondary)', opacity: 0.45 }}
+              />
+              {formatTime(tick)}
+            </span>
+          );
+        })}
+        {(['start', 'end'] as const).map((handle) => {
+          const value = handle === 'start' ? localStart : localEnd;
+          const pct = handle === 'start' ? startPct : endPct;
+          return (
+            <span
+              key={handle}
+              className="absolute top-0 -translate-x-1/2 text-[10px] font-medium whitespace-nowrap"
+              style={{ left: `${pct}%`, color: 'var(--accent-blue)' }}
+            >
+              <span
+                className="absolute bottom-full left-1/2 -translate-x-1/2 mb-0.5 w-0.5 h-2 rounded-sm"
+                style={{ background: 'var(--accent-blue)' }}
+              />
+              {formatTime(value)}
+            </span>
+          );
+        })}
       </div>
 
       <div className="sr-only">

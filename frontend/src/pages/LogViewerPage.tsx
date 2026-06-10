@@ -80,6 +80,11 @@ export function LogViewerPage() {
     [motorPanelTraces, motorsUnit],
   );
 
+  const plotTimeRange = useMemo((): [number, number] | undefined => {
+    if (!traceData?.epoch) return undefined;
+    return [traceData.epoch[0], traceData.epoch[1]];
+  }, [traceData?.epoch]);
+
   return (
     <div className="flex flex-1 min-h-0 min-w-0 w-full gap-4">
       <TraceTogglePanel
@@ -111,6 +116,7 @@ export function LogViewerPage() {
                 title={rollCaption.title}
                 traces={rollTraces}
                 yLabel={rollCaption.yLabel}
+                xRange={plotTimeRange}
                 yRange={rollYRange}
                 lineWidth={settings.lineWidth}
                 saveFilename="log-viewer-roll"
@@ -121,6 +127,7 @@ export function LogViewerPage() {
                 title={pitchCaption.title}
                 traces={pitchTraces}
                 yLabel={pitchCaption.yLabel}
+                xRange={plotTimeRange}
                 yRange={pitchYRange}
                 lineWidth={settings.lineWidth}
               />
@@ -130,6 +137,7 @@ export function LogViewerPage() {
                 title={yawCaption.title}
                 traces={yawTraces}
                 yLabel={yawCaption.yLabel}
+                xRange={plotTimeRange}
                 yRange={yawYRange}
                 lineWidth={settings.lineWidth}
               />
@@ -141,6 +149,7 @@ export function LogViewerPage() {
                     title={throttleCaption.title}
                     traces={throttleTraces}
                     yLabel={throttleCaption.yLabel}
+                    xRange={plotTimeRange}
                     yRange={[0, 100]}
                     lineWidth={settings.lineWidth}
                   />
@@ -150,6 +159,7 @@ export function LogViewerPage() {
                     title={motorRpmCaption.title}
                     traces={motorRpmTraces}
                     yLabel={motorRpmCaption.yLabel}
+                    xRange={plotTimeRange}
                     lineWidth={settings.lineWidth}
                   />
                 )}
@@ -159,6 +169,7 @@ export function LogViewerPage() {
                 title={combinedMotorCaption.title}
                 traces={motorPanelTraces}
                 yLabel={combinedMotorCaption.yLabel}
+                xRange={plotTimeRange}
                 yRange={[0, 100]}
                 lineWidth={settings.lineWidth}
               />

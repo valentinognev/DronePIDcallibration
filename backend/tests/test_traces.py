@@ -70,6 +70,23 @@ def test_motor_panel_uses_erpm_when_available():
     assert data["full_time_range"][1] == pytest.approx(0.02475)
 
 
+def test_trace_time_absolute_from_log_start():
+    n = 400
+    df = pd.DataFrame(
+        {
+            "time_us": np.arange(n) * 250,
+            "gyroADC_0_": np.zeros(n),
+        }
+    )
+    log = _mock_log(df)
+    data = extract_log_viewer_traces(log, 0.01, 0.05, [0], ["gyro"], smooth_factor=1, downsample=False)
+    gyro = data["panels"]["roll"][0]
+    assert gyro["x"][0] == pytest.approx(0.01, abs=0.001)
+    assert gyro["x"][-1] == pytest.approx(0.05, abs=0.001)
+    assert data["time_range"][0] == pytest.approx(0.01, abs=0.001)
+    assert data["time_range"][1] == pytest.approx(0.05, abs=0.001)
+
+
 def test_full_time_range_independent_of_epoch():
     n = 400
     df = pd.DataFrame(

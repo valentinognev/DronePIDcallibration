@@ -206,8 +206,8 @@ def extract_log_viewer_traces(
     df = slice_epoch(log.dataframe, epoch_start, epoch_end)
     if df.empty:
         return _empty_epoch_trace_response(log, epoch_start, epoch_end, axes)
-    t0 = df["time_us"].iloc[0]
-    time_sec = ((df["time_us"] - t0) / US2SEC).values
+    log_t0_us = log.dataframe["time_us"].iloc[0]
+    time_sec = ((df["time_us"] - log_t0_us) / US2SEC).values
 
     factor = int(log.lograte_khz * DOWNSAMPLE_MULTIPLIER) if downsample else 1
 

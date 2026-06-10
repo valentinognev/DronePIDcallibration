@@ -129,6 +129,35 @@ def test_resolve_rpm_prefers_erpm_when_debug_mode_mismatch():
     assert mat[0, 0] == pytest.approx(100.0)
 
 
+def test_resolve_rpm_falls_back_to_motor_estimate():
+    n = 50
+    df = pd.DataFrame(
+        {
+            "motor_0_": np.linspace(10, 80, n),
+            "setpoint_3_": np.linspace(0, 100, n),
+        }
+    )
+    log = _log(61)
+    mat, source = resolve_rpm_filter_matrix(df, log, rpm_estimate=False)
+    assert source == "estimated"
+    assert mat is not None
+    assert np.nanmax(mat[:, 0]) > 0
+
+
+def test_describe_overlay_capabilities_motor_pwm_only():
+    n = 50
+    df = pd.DataFrame(
+        {
+            "motor_0_": np.linspace(10, 80, n),
+            "setpoint_3_": np.linspace(0, 100, n),
+        }
+    )
+    log = _log(61)
+    caps = describe_overlay_capabilities(df, log)
+    assert caps["rpm_notch"]["available"] is True
+    assert "motor" in caps["rpm_notch"]["message"].lower() or "estimate" in caps["rpm_notch"]["message"].lower()
+
+
 def test_resolve_rpm_prefers_estimate_when_enabled():
     n = 50
     # Logged eRPM would yield 100 Hz; estimate path uses motor % × multiplier.

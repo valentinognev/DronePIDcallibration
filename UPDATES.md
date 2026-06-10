@@ -5,6 +5,48 @@ Newest entry always at the top. Every agent must append an entry here when makin
 
 ---
 
+## 0.1.33 — 2026-06-10
+
+### Changed
+
+- **System ID thrust model (ω²)**: thrust coefficient **d** fitted as `T = d·(ω₁²+ω₂²+ω₃²+ω₄²)` per *Data-Driven System Identification of Quadrotors Subject to Motor Delays*; thrust diagnostic plot uses Σωᵢ² on the x-axis; summary cites the reference and reports hover Σωᵢ².
+- **README.md**: current version `0.1.33`; System ID route, API endpoints, module map, and `SysIdPage` section (ωᵢ = delayed motor commands, not gyro).
+
+---
+
+## 0.1.32 — 2026-06-10
+
+### Fixed
+
+- **System ID scroll performance**: result plots use static Plotly mode (no scroll-zoom hijack); preview excitation plots disable wheel zoom; scatter series downsampled to 2500 points; result plot section memoized so sidebar edits do not rebuild all charts.
+- **System ID results summary**: estimated parameters (Tm, d thrust coeff., hover throttle/thrust, inertia, Kτ, model inputs) shown in the sidebar below **Run estimation**; main panel keeps diagnostic plots only.
+
+---
+
+## 0.1.31 — 2026-06-10
+
+### Added
+
+- **System ID tab** (`/sysid`, `SysIdPage.tsx`): quadrotor parameter estimation (motor time constant `Tm`, thrust polynomial `Kf`, roll/pitch inertia `Ixx`/`Iyy`, extrapolated `Izz`, yaw torque `Kτ`) based on [sysid.tools](https://sysid.tools) workflow.
+- **Backend `pidbox/core/sysid/`**: Python port of Berkeley data-driven sysid algorithms (`log_adapter`, `preprocess`, `dynamics`, `estimators`, `pipeline`) — **uses parsed session logs** (normalized `accel_*`, `gyroADC_*`, `motor_in_*` / `motor_*` columns) from the existing firmware parsers; no separate ULog loader.
+- **API**: `POST /analysis/sysid/capabilities`, `/defaults`, `/preview`, `/run`.
+- **Tests**: `backend/tests/test_sysid.py` (9 tests).
+
+### Changed
+
+- Sysid is **format-agnostic**: any firmware/parser that exposes accelerometer, gyro, and motor command columns can run estimation; PX4 `CA_ROTOR*` geometry auto-fills from parsed setup info when present.
+- API / UI version `0.1.31`.
+
+### Fixed
+
+- **System ID UI**: per-phase excitation plots (thrust/torque, roll/pitch, yaw) embedded in each analysis panel; data filtered to the selected file and time sector; motor-only preview removed.
+- **System ID sliders**: epoch ranges stored per file and per phase; switching the file dropdown restores saved positions; new files default to the full log timeline.
+- **System ID file toggles**: per-panel **Enabled** checkbox for the selected file in the dropdown; state is stored per file; disabled selection greys out the slider and excitation plot.
+- **System ID result plots**: thrust fit axis labels; hovering-throttle histogram; thrust vs normalized RPM with `a·x²+b·x+c` and `d·x²` fits (beside Tm curve); inertia/yaw axis and legend labels per sysid.tools.
+- **System ID sidebar**: wider panel (`w-96`); geometry source file dropdown replaces file checkboxes; thrust exponent toggles removed (fixed quadratic fit).
+
+---
+
 ## 0.1.30 — 2026-06-09
 
 ### Added

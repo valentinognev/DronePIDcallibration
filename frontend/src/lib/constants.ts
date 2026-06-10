@@ -257,6 +257,21 @@ export const INTERACTIVE_PLOT_CONFIG: Partial<Plotly.Config> = {
   modeBarButtonsToRemove: ['lasso2d', 'select2d'],
 };
 
+/** Scrollable pages: pan/zoom via mode bar only — wheel scroll stays on the page. */
+export const PREVIEW_PLOT_CONFIG: Partial<Plotly.Config> = {
+  ...INTERACTIVE_PLOT_CONFIG,
+  scrollZoom: false,
+};
+
+/** Result / diagnostic plots: no interaction overhead while scrolling. */
+export const RESULT_PLOT_CONFIG: Partial<Plotly.Config> = {
+  responsive: true,
+  staticPlot: true,
+  scrollZoom: false,
+  displayModeBar: false,
+  displaylogo: false,
+};
+
 /** Line dash per file index for multi-file overlays. */
 export const FILE_OVERLAY_LINE_DASHES = [
   'solid',

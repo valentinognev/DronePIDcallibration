@@ -9,6 +9,7 @@ const NAV = [
   { path: '/filter-sim', label: 'Filter Sim' },
   { path: '/setup-info', label: 'Setup Info' },
   { path: '/stats', label: 'PID Stats' },
+  { path: '/sysid', label: 'System ID' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col">
       <header className="border-b px-4 py-2 flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}>
         <div className="flex items-center gap-6">
-          <h1 className="text-lg font-bold">PIDToolBox</h1>
+          <h1 className="text-lg font-bold">DronePIDCallibration</h1>
           <nav className="flex gap-1 flex-wrap">
             {NAV.map(({ path, label }) => (
               <Link

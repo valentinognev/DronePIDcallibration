@@ -150,3 +150,56 @@ class UserSettings(BaseModel):
 
 class AnalysisResult(BaseModel):
     data: dict[str, Any]
+
+
+class SysIdModel(BaseModel):
+    mass: float = Field(gt=0)
+    gravity: float = 9.81
+    inertia_ratio: float = Field(default=1.832, gt=0)
+    rotor_positions: list[list[float]] = Field(
+        description="4 rotors × [x, y, z] in FLU frame (m)",
+        min_length=4,
+        max_length=4,
+    )
+    rotor_thrust_directions: list[list[float]] = Field(min_length=4, max_length=4)
+    rotor_torque_directions: list[list[float]] = Field(min_length=4, max_length=4)
+
+
+class SysIdTimeframe(BaseModel):
+    file_idx: int = Field(ge=0)
+    start: float = Field(ge=0)
+    end: float = Field(gt=0)
+
+
+class SysIdDefaultsRequest(BaseModel):
+    session_id: str
+    file_idx: int = 0
+    log_idx: int = 0
+
+
+class SysIdCapabilitiesRequest(BaseModel):
+    session_id: str
+    file_idx: int = 0
+    log_idx: int = 0
+
+
+class SysIdPreviewRequest(BaseModel):
+    session_id: str
+    file_indices: list[int] = Field(default=[0])
+    log_idx: int = 0
+    model: SysIdModel
+
+
+class SysIdRunRequest(BaseModel):
+    session_id: str
+    file_indices: list[int] = Field(default=[0])
+    log_idx: int = 0
+    model: SysIdModel
+    exponents: list[int] = Field(default=[0, 1, 2])
+    separate_motors: bool = False
+    timeframes_thrust: list[SysIdTimeframe]
+    timeframes_inertia_rp: list[SysIdTimeframe]
+    timeframes_inertia_yaw: list[SysIdTimeframe]
+    t_m_steps: int = Field(default=100, ge=10, le=500)
+    t_m_min: float = Field(default=0.001, gt=0)
+    t_m_max: float = Field(default=0.2, gt=0)
